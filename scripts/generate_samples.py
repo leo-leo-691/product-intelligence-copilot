@@ -136,5 +136,40 @@ for i, sku in enumerate([f"BEAR-P-{n}" for n in range(101, 106)], start=1):
 for i, sku in enumerate([f"SENS-T-{n}" for n in range(201, 206)], start=1):
     (TEXT / f"sensor_{200+i}.txt").write_text(SENSOR_TEMPLATE.format(sku=sku), encoding="utf-8")
 
+MOTOR_TEMPLATE = """SOURCE_TEMPLATE: drivemax_motor_std
+DriveMax Motor — Datasheet
+SKU: {sku}
+Manufacturer: DriveMax
+Model Number: {sku}
+Motor Type: Induction
+Power kW: {kw}
+Voltage V: 400
+Rpm: 1450
+Frame Size: 132M
+Efficiency Class: IE3
+Enclosure: TEFC
+"""
+
+FASTENER_TEMPLATE = """SOURCE_TEMPLATE: boltpro_fastener_std
+BoltPro Fastener — Catalog
+Part Number: {sku}
+Manufacturer: BoltPro
+Fastener Type: Hex Bolt
+Thread Size: M12
+Length mm: {length}
+Material: Stainless Steel
+Grade: A2-70
+Finish: Plain
+Head Style: Hex
+"""
+
+for i, sku in enumerate([f"MOT-D-{n}" for n in range(301, 304)], start=1):
+    body = MOTOR_TEMPLATE.format(sku=sku, kw=2.2 * i)
+    (TEXT / f"motor_{300+i}.txt").write_text(body, encoding="utf-8")
+
+for i, sku in enumerate([f"FAST-B-{n}" for n in range(401, 404)], start=1):
+    body = FASTENER_TEMPLATE.format(sku=sku, length=20 + i * 10)
+    (TEXT / f"fastener_{400+i}.txt").write_text(body, encoding="utf-8")
+
 print(f"Wrote sample texts to {TEXT}")
 print(f"Wrote sample PDFs to {PDF}")

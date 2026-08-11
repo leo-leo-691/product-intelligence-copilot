@@ -21,6 +21,12 @@
     {"sku": "SENS-T-205", "category_id": "sensor", "text_file": "text/sensor_205.txt"},
     {"sku": "VALVE-A-006", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_006.txt", "source_template_id": "acmeflow_valve_series_a"},
     {"sku": "VALVE-A-007", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_007.txt", "source_template_id": "acmeflow_valve_series_a"},
-    {"sku": "VALVE-A-008", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_008.txt", "source_template_id": "acmeflow_valve_series_a"}
+    {"sku": "VALVE-A-008", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_008.txt", "source_template_id": "acmeflow_valve_series_a"},
+    {"sku": "MOT-D-301", "category_id": "motor", "text_file": "text/motor_301.txt", "source_template_id": "drivemax_motor_std"},
+    {"sku": "MOT-D-302", "category_id": "motor", "text_file": "text/motor_302.txt", "source_template_id": "drivemax_motor_std"},
+    {"sku": "MOT-D-303", "category_id": "motor", "text_file": "text/motor_303.txt", "source_template_id": "drivemax_motor_std"},
+    {"sku": "FAST-B-401", "category_id": "fastener", "text_file": "text/fastener_401.txt", "source_template_id": "boltpro_fastener_std"},
+    {"sku": "FAST-B-402", "category_id": "fastener", "text_file": "text/fastener_402.txt", "source_template_id": "boltpro_fastener_std"},
+    {"sku": "FAST-B-403", "category_id": "fastener", "text_file": "text/fastener_403.txt", "source_template_id": "boltpro_fastener_std"}
   ]
 }

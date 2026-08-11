@@ -157,6 +157,7 @@ async def gap_fill_missing(
         return out
 
     filled_count = 0
+    max_calls = max(1, min(settings.gap_fill_max_calls, 5))
     for fdef in schema.fields:
         if not fdef.required:
             continue
@@ -164,7 +165,7 @@ async def gap_fill_missing(
         if fp and not fp.not_found:
             continue
         # Cap gap-fill calls for scale
-        if filled_count >= 2:
+        if filled_count >= max_calls:
             break
         filled = await gap_fill_field(
             sku, fdef.name, str(mfr) if mfr else None, str(mdl) if mdl else None

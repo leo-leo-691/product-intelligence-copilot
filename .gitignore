@@ -1,21 +1,61 @@
+# =========================
+# Python
+# =========================
 .venv/
 venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
+
+# =========================
+# Environment / Secrets
+# =========================
 .env
+.env.*
+!.env.example
+
+# =========================
+# Databases
+# =========================
 *.db
+*.sqlite
 *.sqlite3
-backend/data/*.db
+*.sqlite3*
+
+# =========================
+# Application storage
+# =========================
 storage/
 !storage/.gitkeep
 
+# =========================
+# Frontend
+# =========================
 frontend/node_modules/
 frontend/dist/
+frontend/.vite/
 
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS
+# =========================
 .DS_Store
 Thumbs.db
-*.log
-.idea/
-.vscode/
+
+# =========================
+# Python tooling
+# =========================
+.coverage
+htmlcov/
+.ruff_cache/

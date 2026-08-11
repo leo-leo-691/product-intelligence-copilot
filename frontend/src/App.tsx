@@ -1,6 +1,7 @@
-import { Link, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Route, Routes } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { fetchHealth, HealthInfo } from "./api";
+import ConfidenceStamp, { StampFilterDefs } from "./components/ConfidenceStamp";
 import DashboardPage from "./pages/Dashboard";
 import ReviewPage from "./pages/Review";
 import UploadPage from "./pages/Upload";
@@ -14,29 +15,31 @@ export default function App() {
       .catch(() => setHealth(null));
   }, []);
 
+  const navClass = ({ isActive }: { isActive: boolean }) =>
+    [
+      "font-mono text-[11px] uppercase tracking-label transition-colors",
+      isActive ? "text-ink border-b border-ink pb-0.5" : "text-ink-soft hover:text-ink",
+    ].join(" ");
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#0f1f1a_0%,_#0b1220_45%,_#070b14_100%)] text-slate-100">
-      <header className="border-b border-slate-800/80 bg-slate-950/70 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link to="/" className="text-lg font-semibold tracking-tight text-emerald-400">
+    <div className="min-h-screen bg-paper text-ink">
+      <StampFilterDefs />
+      <header className="border-b border-rule-line bg-paper">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <Link to="/" className="font-display text-lg font-semibold uppercase tracking-stencil text-ink sm:text-xl">
             Product Intelligence Copilot
           </Link>
-          <nav className="flex items-center gap-4 text-sm text-slate-300">
-            <Link to="/upload" className="hover:text-white">
+          <nav className="flex flex-wrap items-center gap-4 sm:gap-5">
+            <NavLink to="/upload" className={navClass}>
               Ingest
-            </Link>
-            <Link to="/review" className="hover:text-white">
+            </NavLink>
+            <NavLink to="/review" className={navClass}>
               Review
-            </Link>
-            <Link to="/dashboard" className="hover:text-white">
+            </NavLink>
+            <NavLink to="/dashboard" className={navClass}>
               Dashboard
-            </Link>
+            </NavLink>
             <span
-              className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${
-                health?.status === "ok"
-                  ? "border-emerald-800 text-emerald-400"
-                  : "border-red-800 text-red-400"
-              }`}
               title={
                 health
                   ? `LLM: ${health.anthropic_configured ? "on" : "off"} · Search: ${
@@ -45,12 +48,16 @@ export default function App() {
                   : "API unreachable"
               }
             >
-              {health?.status === "ok" ? "API ok" : "API down"}
+              <ConfidenceStamp
+                kind={health?.status === "ok" ? "live" : "down"}
+                compact
+                animate={false}
+              />
             </span>
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         <Routes>
           <Route path="/" element={<UploadPage />} />
           <Route path="/upload" element={<UploadPage />} />

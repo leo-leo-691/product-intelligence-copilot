@@ -3,17 +3,184 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+  --paper: #ede4ce;
+  --paper-dim: #dcd0ae;
+  --ink: #1c2430;
+  --ink-soft: #4a5568;
+  --stamp-approved: #3f6b4a;
+  --stamp-flagged: #a63d2f;
+  --stamp-review: #c08a34;
+  --rule-line: #b8a97d;
+  --paper-rgb: 237 228 206;
+  --paper-dim-rgb: 220 208 174;
+  --ink-rgb: 28 36 48;
+  --ink-soft-rgb: 74 85 104;
+  --stamp-approved-rgb: 63 107 74;
+  --stamp-flagged-rgb: 166 61 47;
+  --stamp-review-rgb: 192 138 52;
+  --rule-line-rgb: 184 169 125;
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  background: #070b14;
-  color: #e2e8f0;
+@layer base {
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", sans-serif;
+    line-height: 1.5;
+  }
+
+  body::before {
+    content: "";
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
 }
 
-button:disabled {
-  cursor: not-allowed;
+@layer components {
+  .rule-tear {
+    border: 0;
+    border-top: 1px dashed var(--rule-line);
+    margin: 1.25rem 0;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.5rem 1rem;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: opacity 150ms ease;
+  }
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    padding: 0.5rem 1rem;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 150ms ease;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--paper-dim);
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    border: 1px solid var(--rule-line);
+    background: var(--paper);
+    color: var(--ink);
+    padding: 0.375rem 0.75rem;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: var(--ink);
+    background: var(--paper-dim);
+  }
+
+  .form-label {
+    display: block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+  }
+
+  .form-underline {
+    margin-top: 0.25rem;
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--rule-line);
+    background: transparent;
+    padding: 0.5rem 0;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.875rem;
+    color: var(--ink);
+    border-radius: 0;
+  }
+  .form-underline::placeholder {
+    color: rgb(var(--ink-soft-rgb) / 0.5);
+  }
+  .form-underline:focus {
+    outline: none;
+    border-bottom-color: var(--ink);
+  }
+
+  .panel {
+    border: 1px solid var(--rule-line);
+    background: var(--paper-dim);
+    border-radius: 3px;
+  }
+
+  .section-title {
+    font-family: "Oswald", sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink);
+  }
+
+  .page-title {
+    font-family: "Oswald", sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink);
+  }
+  @media (min-width: 640px) {
+    .page-title {
+      font-size: 1.875rem;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-stamp {
+    animation: none !important;
+  }
 }

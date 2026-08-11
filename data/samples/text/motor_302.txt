@@ -1,0 +1,12 @@
+SOURCE_TEMPLATE: drivemax_motor_std
+DriveMax Motor — Datasheet
+SKU: MOT-D-302
+Manufacturer: DriveMax
+Model Number: MOT-D-302
+Motor Type: Induction
+Power kW: 4.4
+Voltage V: 400
+Rpm: 1450
+Frame Size: 132M
+Efficiency Class: IE3
+Enclosure: TEFC

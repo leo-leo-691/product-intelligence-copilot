@@ -13,13 +13,14 @@ def utc_now() -> str:
 
 class ProductInput(BaseModel):
     sku: str
-    category_id: str
+    category_id: str | None = None  # optional — auto-inferred when missing
     source_template_id: str | None = None
     text: str | None = None
     pdf_path: str | None = None
     image_path: str | None = None
     url: str | None = None
     seed_web_overrides: dict[str, Any] | None = None
+    title: str | None = None
 
 
 class ProductRecord(BaseModel):
@@ -33,6 +34,11 @@ class ProductRecord(BaseModel):
     created_at: str = Field(default_factory=utc_now)
     updated_at: str = Field(default_factory=utc_now)
     status: str = "pending_review"  # pending_review | partially_approved | approved
+    # Tier 2/3 metadata
+    category_inference: dict[str, Any] | None = None
+    language: dict[str, Any] | None = None
+    outliers: list[dict[str, Any]] = Field(default_factory=list)
+    kg: dict[str, Any] | None = None
 
 
 class BatchRun(BaseModel):
@@ -64,3 +70,5 @@ class DashboardStats(BaseModel):
     conflicts_count: int = 0
     propagations_applied: int = 0
     estimated_minutes_saved: float = 0.0
+    outliers_flagged: int = 0
+    kg_nodes: int = 0

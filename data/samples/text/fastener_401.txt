@@ -1,0 +1,11 @@
+SOURCE_TEMPLATE: boltpro_fastener_std
+BoltPro Fastener — Catalog
+Part Number: FAST-B-401
+Manufacturer: BoltPro
+Fastener Type: Hex Bolt
+Thread Size: M12
+Length mm: 30
+Material: Stainless Steel
+Grade: A2-70
+Finish: Plain
+Head Style: Hex

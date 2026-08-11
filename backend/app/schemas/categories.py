@@ -69,10 +69,44 @@ SENSOR = CategorySchema(
     ],
 )
 
+MOTOR = CategorySchema(
+    category_id="motor",
+    display_name="Motor",
+    fields=[
+        FieldDef(name="manufacturer", type="string", required=True),
+        FieldDef(name="model_number", type="string", required=True),
+        FieldDef(name="motor_type", type="string", required=True),
+        FieldDef(name="power_kw", type="number", unit="kW", required=True, min_value=0.01, max_value=5000),
+        FieldDef(name="voltage_v", type="number", unit="V", required=True, min_value=12, max_value=15000),
+        FieldDef(name="rpm", type="number", unit="rpm", required=False, min_value=0, max_value=50000),
+        FieldDef(name="frame_size", type="string", required=False),
+        FieldDef(name="efficiency_class", type="string", required=False),
+        FieldDef(name="enclosure", type="string", required=False),
+    ],
+)
+
+FASTENER = CategorySchema(
+    category_id="fastener",
+    display_name="Fastener",
+    fields=[
+        FieldDef(name="manufacturer", type="string", required=True),
+        FieldDef(name="part_number", type="string", required=True),
+        FieldDef(name="fastener_type", type="string", required=True),
+        FieldDef(name="thread_size", type="string", required=True),
+        FieldDef(name="length_mm", type="number", unit="mm", required=True, min_value=1, max_value=2000),
+        FieldDef(name="material", type="string", required=True),
+        FieldDef(name="grade", type="string", required=False),
+        FieldDef(name="finish", type="string", required=False),
+        FieldDef(name="head_style", type="string", required=False),
+    ],
+)
+
 CATEGORIES: dict[str, CategorySchema] = {
     "industrial_valve": INDUSTRIAL_VALVE,
     "bearing": BEARING,
     "sensor": SENSOR,
+    "motor": MOTOR,
+    "fastener": FASTENER,
 }
 
 

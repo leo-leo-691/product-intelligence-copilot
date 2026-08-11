@@ -88,10 +88,27 @@ async def test_pdf_if_present():
     assert any(not f.not_found for f in rec.fields.values())
 
 
+async def test_category_infer():
+    from backend.app.services.category_infer import infer_category
+
+    cid, reason, conf = infer_category("Deep groove ball bearing bore 25mm", sku="BEAR-P-999")
+    assert cid == "bearing"
+    assert conf > 0.4
+
+
+async def test_language_detect():
+    from backend.app.services.language import detect_language
+
+    meta = detect_language("Nennweite und Werkstoff des Ventils")
+    assert meta["source_language"] == "de"
+
+
 if __name__ == "__main__":
     asyncio.run(test_text_e2e())
     asyncio.run(test_conflict())
     asyncio.run(test_sparse_no_hallucination())
     asyncio.run(test_propagation())
     asyncio.run(test_pdf_if_present())
+    asyncio.run(test_category_infer())
+    asyncio.run(test_language_detect())
     print("smoke ok")

@@ -6,7 +6,7 @@ export default function UploadPage() {
   const nav = useNavigate();
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [sku, setSku] = useState("");
-  const [categoryId, setCategoryId] = useState("industrial_valve");
+  const [categoryId, setCategoryId] = useState("auto");
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
   const [pdf, setPdf] = useState<File | null>(null);
@@ -20,7 +20,6 @@ export default function UploadPage() {
     fetchCategories()
       .then((c) => {
         setCategories(c);
-        if (c.length) setCategoryId(c[0].id);
       })
       .catch((e) => setError(String(e)));
   }, []);
@@ -75,44 +74,53 @@ export default function UploadPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Ingest product data</h1>
-          <p className="mt-1 text-slate-400">
+          <p className="font-mono text-[11px] uppercase tracking-label text-ink-soft">Intake desk</p>
+          <h1 className="page-title mt-1">Ingest product data</h1>
+          <p className="mt-2 max-w-xl font-sans text-sm text-ink-soft">
             PDF, image, pasted text, or URL — multi-source extraction with provenance.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onDemoBatch}
-          disabled={batchLoading}
-          className="rounded-lg border border-emerald-700/80 bg-emerald-950/60 px-4 py-2 text-sm text-emerald-300 hover:bg-emerald-900 disabled:opacity-50"
-        >
+        <button type="button" onClick={onDemoBatch} disabled={batchLoading} className="btn-secondary">
           {batchLoading ? "Running demo batch…" : "Load 20-product demo batch"}
         </button>
       </div>
 
-      {batchMsg && <p className="text-sm text-emerald-400">{batchMsg}</p>}
+      {batchMsg && <p className="font-mono text-sm text-stamp-approved">{batchMsg}</p>}
 
-      <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-xl shadow-black/20">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm">
-            SKU
+      <form onSubmit={onSubmit} className="panel p-5 sm:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-dashed border-rule-line pb-4">
+          <div>
+            <h2 className="font-display text-lg font-semibold uppercase tracking-stencil text-ink">
+              Intake Form — Product Data
+            </h2>
+            <p className="mt-1 font-sans text-xs text-ink-soft">
+              Complete required fields. Attach source documents when available.
+            </p>
+          </div>
+          <p className="font-mono text-[11px] uppercase tracking-label text-ink-soft">Form PI-014</p>
+        </div>
+
+        <div className="mt-6 grid gap-6 sm:grid-cols-2">
+          <label className="block">
+            <span className="form-label">SKU</span>
             <input
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+              className="form-underline"
               value={sku}
               onChange={(e) => setSku(e.target.value)}
               required
               placeholder="VALVE-A-001"
             />
           </label>
-          <label className="block text-sm">
-            Category
+          <label className="block">
+            <span className="form-label">Category</span>
             <select
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+              className="form-underline appearance-none"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
             >
+              <option value="auto">Auto-infer category</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -121,54 +129,59 @@ export default function UploadPage() {
             </select>
           </label>
         </div>
-        <label className="block text-sm">
-          Raw text
+
+        <hr className="rule-tear" />
+
+        <label className="block">
+          <span className="form-label">Raw text</span>
           <textarea
-            className="mt-1 h-40 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs"
+            className="form-underline mt-1 h-40 resize-y"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Paste datasheet text, or use Load demo batch"
           />
         </label>
-        <label className="block text-sm">
-          URL (optional)
+
+        <label className="mt-6 block">
+          <span className="form-label">URL (optional)</span>
           <input
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+            className="form-underline"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://…"
           />
         </label>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm">
-            PDF (optional)
+
+        <hr className="rule-tear" />
+
+        <div className="grid gap-6 sm:grid-cols-2">
+          <label className="block">
+            <span className="form-label">PDF (optional)</span>
             <input
               type="file"
               accept=".pdf"
-              className="mt-1 block w-full text-sm text-slate-400"
+              className="mt-2 block w-full font-mono text-xs text-ink-soft file:mr-3 file:rounded-[3px] file:border file:border-rule-line file:bg-paper file:px-3 file:py-1.5 file:font-sans file:text-xs file:text-ink"
               onChange={(e) => setPdf(e.target.files?.[0] ?? null)}
             />
           </label>
-          <label className="block text-sm">
-            Image (optional, VLM when API key set)
+          <label className="block">
+            <span className="form-label">Image (optional, VLM when API key set)</span>
             <input
               type="file"
               accept="image/*"
-              className="mt-1 block w-full text-sm text-slate-400"
+              className="mt-2 block w-full font-mono text-xs text-ink-soft file:mr-3 file:rounded-[3px] file:border file:border-rule-line file:bg-paper file:px-3 file:py-1.5 file:font-sans file:text-xs file:text-ink"
               onChange={(e) => setImage(e.target.files?.[0] ?? null)}
             />
           </label>
         </div>
-        {error && <p className="text-sm text-red-400">{error}</p>}
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium hover:bg-emerald-500 disabled:opacity-50"
-          >
+
+        {error && <p className="mt-4 font-mono text-sm text-stamp-flagged">{error}</p>}
+
+        <div className="mt-8 flex flex-wrap gap-3 border-t border-dashed border-rule-line pt-5">
+          <button type="submit" disabled={loading} className="btn-primary">
             {loading ? "Processing…" : "Run pipeline"}
           </button>
-          <Link to="/dashboard" className="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800">
+          <Link to="/dashboard" className="btn-secondary">
             Open dashboard
           </Link>
         </div>

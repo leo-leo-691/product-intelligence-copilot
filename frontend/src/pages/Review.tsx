@@ -11,12 +11,8 @@ import {
   resolveConflict,
   reviewField,
 } from "../api";
-
-function badgeClass(band: string) {
-  if (band === "High") return "bg-emerald-900/60 text-emerald-300 border-emerald-700";
-  if (band === "Medium") return "bg-amber-900/40 text-amber-200 border-amber-700";
-  return "bg-red-900/40 text-red-200 border-red-800";
-}
+import ConfidenceStamp from "../components/ConfidenceStamp";
+import RoutingTag from "../components/RoutingTag";
 
 export default function ReviewPage() {
   const { id } = useParams();
@@ -54,18 +50,20 @@ export default function ReviewPage() {
 
   if (!list.length && !error) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-8 text-center">
-        <p className="text-slate-300">No products yet.</p>
-        <p className="mt-2 text-sm text-slate-500">Load the demo batch from Ingest, or upload a datasheet.</p>
-        <Link to="/upload" className="mt-4 inline-block text-emerald-400 hover:underline">
-          Go to Ingest →
+      <div className="panel p-8 text-center">
+        <p className="font-display text-lg uppercase tracking-stencil text-ink">No products yet</p>
+        <p className="mt-2 font-sans text-sm text-ink-soft">
+          Load the demo batch from Ingest, or upload a datasheet.
+        </p>
+        <Link to="/upload" className="btn-primary mt-5 inline-flex">
+          Go to Ingest
         </Link>
       </div>
     );
   }
 
   if (!record) {
-    return <p className="text-slate-400">{error || "Loading product…"}</p>;
+    return <p className="font-mono text-sm text-ink-soft">{error || "Loading product…"}</p>;
   }
 
   const conflictFields = new Set(record.conflicts.filter((c) => !c.resolved).map((c) => c.field_name));
@@ -135,182 +133,221 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-      <aside className="rounded-2xl border border-slate-800 bg-slate-900/40 p-3">
-        <p className="mb-2 text-xs font-medium uppercase text-slate-500">Products</p>
+    <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+      <aside className="panel p-3">
+        <p className="mb-2 font-display text-xs uppercase tracking-stencil text-ink">Routing log</p>
         <input
-          className="mb-2 w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs"
+          className="form-underline mb-3 text-xs"
           placeholder="Filter SKU…"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
-        <ul className="max-h-[70vh] space-y-1 overflow-auto text-sm">
+        <ul className="max-h-[70vh] space-y-2 overflow-auto">
           {filtered.map((p) => (
             <li key={p.id}>
-              <Link
+              <RoutingTag
+                sku={p.sku}
+                category={p.category_id}
                 to={`/review/${p.id}`}
-                className={`block rounded px-2 py-1 ${
-                  p.id === record.id ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-800/60"
-                }`}
-              >
-                {p.sku}
-                {p.conflicts.some((c) => !c.resolved) && <span className="ml-1 text-amber-400">!</span>}
-              </Link>
+                active={p.id === record.id}
+                flagged={p.conflicts.some((c) => !c.resolved)}
+              />
             </li>
           ))}
         </ul>
       </aside>
 
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-dashed border-rule-line pb-4">
           <div>
-            <h1 className="text-2xl font-semibold">{record.sku}</h1>
-            <p className="text-sm text-slate-400">
-              {record.category_id} · template {record.source_template_id ?? "—"} · status{" "}
-              <span className="text-emerald-400">{record.status}</span>
+            <p className="font-mono text-[11px] uppercase tracking-label text-ink-soft">Inspection sheet</p>
+            <h1 className="mt-1 font-mono text-2xl font-semibold text-ink sm:text-3xl">{record.sku}</h1>
+            <p className="mt-1 font-sans text-sm text-ink-soft">
+              <span className="font-mono">{record.category_id}</span>
+              {" · template "}
+              <span className="font-mono">{record.source_template_id ?? "—"}</span>
+              {" · status "}
+              <span className="font-mono uppercase text-stamp-approved">{record.status}</span>
             </p>
+            {record.category_inference && (
+              <p className="mt-1 font-mono text-[11px] text-ink-soft">
+                Inferred: {record.category_inference.reasoning} (conf{" "}
+                {record.category_inference.confidence})
+              </p>
+            )}
+            {record.language && (
+              <p className="mt-1 font-mono text-[11px] text-ink-soft">
+                Language: {String(record.language.source_language ?? "en")}
+                {record.language.translation_applied ? " → en translated" : ""}
+                {record.language.translation_confidence != null
+                  ? ` (tx ${String(record.language.translation_confidence)})`
+                  : ""}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={onBulk}
-              disabled={busy}
-              className="rounded-lg border border-emerald-700 bg-emerald-950 px-3 py-1.5 text-sm text-emerald-300 hover:bg-emerald-900 disabled:opacity-50"
-            >
+            <button onClick={onBulk} disabled={busy} className="btn-primary">
               Bulk-approve High
             </button>
-            <button
-              onClick={onApproveAll}
-              disabled={busy}
-              className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm hover:bg-slate-800 disabled:opacity-50"
-            >
+            <button onClick={onApproveAll} disabled={busy} className="btn-secondary">
               Approve record
             </button>
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="font-mono text-sm text-stamp-flagged">{error}</p>}
+
+        {(record.outliers?.length ?? 0) > 0 && (
+          <section className="border border-stamp-review bg-paper p-4">
+            <h2 className="font-display text-sm uppercase tracking-stencil text-stamp-review">
+              Consistency outliers
+            </h2>
+            <ul className="mt-2 space-y-1 font-mono text-xs text-ink">
+              {record.outliers!.map((o, i) => (
+                <li key={`${o.field_name}-${i}`}>{o.message}</li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {record.conflicts.filter((c) => !c.resolved).length > 0 && (
-          <div className="rounded-2xl border border-amber-700/60 bg-amber-950/30 p-4">
-            <h2 className="font-medium text-amber-200">Conflicts — not auto-resolved</h2>
+          <section className="border border-stamp-flagged bg-paper p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <ConfidenceStamp kind="flagged" animate={false} />
+              <h2 className="font-display text-base uppercase tracking-stencil text-stamp-flagged">
+                Conflicts — not auto-resolved
+              </h2>
+              <span className="font-mono text-[10px] uppercase tracking-label text-stamp-flagged">Unresolved</span>
+            </div>
             {record.conflicts
               .filter((c) => !c.resolved)
               .map((c) => (
-                <div key={c.field_name} className="mt-3 text-sm">
-                  <p className="font-mono text-amber-100">{c.field_name}</p>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <div key={c.field_name} className="mt-4">
+                  <p className="font-mono text-sm text-ink">{c.field_name}</p>
+                  <div className="mt-2 grid gap-0 sm:grid-cols-[1fr_3px_1fr]">
                     {c.candidates.map((x, i) => (
-                      <div key={i} className="rounded-lg border border-slate-700 bg-slate-950/80 p-3">
-                        <p className="text-lg font-semibold">{String(x.value)}</p>
-                        <p className="text-xs text-slate-400">
-                          {x.source_type} · {x.extraction_method}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">{x.source_snippet}</p>
-                        <button
-                          className="mt-2 text-xs text-emerald-400 hover:underline"
-                          disabled={busy}
-                          onClick={async () => {
-                            setBusy(true);
-                            try {
-                              const updated = await resolveConflict(record.id, c.field_name, x.value);
-                              setRecord(updated);
-                            } catch (e) {
-                              setError(String(e));
-                            } finally {
-                              setBusy(false);
-                            }
-                          }}
+                      <div key={i} className="contents">
+                        {i === 1 && (
+                          <div className="hidden bg-stamp-flagged sm:block" aria-hidden />
+                        )}
+                        <div
+                          className={[
+                            "border border-rule-line bg-paper-dim p-3",
+                            i === 1 ? "sm:border-l-0" : "sm:border-r-0",
+                          ].join(" ")}
                         >
-                          Use this value
-                        </button>
+                          <p className="font-mono text-lg font-semibold text-ink">{String(x.value)}</p>
+                          <p className="mt-2 inline-block border border-dashed border-rule-line bg-paper px-2 py-1 font-mono text-[10px] uppercase tracking-label text-ink-soft">
+                            Source · {x.source_type}
+                          </p>
+                          <p className="mt-2 font-mono text-xs text-ink-soft">{x.extraction_method}</p>
+                          <p className="mt-1 font-mono text-xs text-ink-soft">{x.source_snippet}</p>
+                          <button
+                            className="btn-ghost mt-3"
+                            disabled={busy}
+                            onClick={async () => {
+                              setBusy(true);
+                              try {
+                                const updated = await resolveConflict(record.id, c.field_name, x.value);
+                                setRecord(updated);
+                              } catch (e) {
+                                setError(String(e));
+                              } finally {
+                                setBusy(false);
+                              }
+                            }}
+                          >
+                            Use this value
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               ))}
-          </div>
+          </section>
         )}
 
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {Object.entries(record.fields).map(([name, fp]) => (
             <li
               key={name}
-              className={`rounded-2xl border p-4 ${
-                conflictFields.has(name) ? "border-amber-700" : "border-slate-800"
-              } bg-slate-900/40`}
+              className={[
+                "panel p-4",
+                conflictFields.has(name) ? "border-stamp-flagged" : "",
+              ].join(" ")}
             >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-mono text-sm text-slate-300">{name}</p>
-                  <p className="text-lg">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="form-label">{name}</p>
+                  <p className="mt-1 font-mono text-lg text-ink">
                     {fp.not_found ? (
-                      <span className="italic text-slate-500">not found</span>
+                      <span className="italic text-ink-soft">not found</span>
                     ) : (
                       String(fp.value)
                     )}
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-label text-ink-soft">
                     review: {fp.review_status}
                     {fp.needs_review ? " · needs review" : ""}
                   </p>
                 </div>
-                <span
-                  className={`rounded-full border px-2 py-0.5 text-xs ${badgeClass(fp.confidence_score)}`}
+                <ConfidenceStamp
+                  band={fp.confidence_score}
+                  notFound={fp.not_found}
+                  needsReview={fp.needs_review}
                   title={JSON.stringify(fp.confidence_reasoning)}
-                >
-                  {fp.confidence_score}
-                </span>
+                />
               </div>
+
               <button
                 type="button"
-                className="mt-2 text-xs text-emerald-400 hover:underline"
+                className="mt-3 inline-flex items-center gap-1.5 border border-dashed border-rule-line bg-paper px-2 py-1 font-mono text-[10px] uppercase tracking-label text-ink-soft hover:border-ink hover:text-ink"
                 onClick={() => setExpanded(expanded === name ? null : name)}
               >
-                {expanded === name ? "Hide citation" : "Show citation & reasoning"}
+                <span
+                  className="inline-block h-2.5 w-2.5 rotate-45 border border-rule-line bg-paper-dim"
+                  aria-hidden
+                />
+                {expanded === name ? "Hide source" : "Source"}
               </button>
               {expanded === name && (
-                <div className="mt-2 rounded-lg bg-slate-950 p-3 text-xs text-slate-400">
-                  <p>{fp.source_snippet ?? "—"}</p>
+                <div className="mt-2 border border-dashed border-rule-line bg-paper p-3 font-mono text-xs text-ink-soft">
+                  <p className="text-ink">{fp.source_snippet ?? "—"}</p>
                   <p className="mt-1">{fp.source_location}</p>
                   <p className="mt-1">method: {fp.extraction_method}</p>
-                  <p className="mt-2 font-mono text-slate-500">{JSON.stringify(fp.confidence_reasoning)}</p>
+                  <p className="mt-2 break-all">{JSON.stringify(fp.confidence_reasoning)}</p>
                   {fp.validation_errors.length > 0 && (
-                    <p className="mt-1 text-red-400">Validation: {fp.validation_errors.join(", ")}</p>
+                    <p className="mt-1 text-stamp-flagged">
+                      Validation: {fp.validation_errors.join(", ")}
+                    </p>
                   )}
                 </div>
               )}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  className="rounded bg-slate-800 px-2 py-1 text-xs hover:bg-slate-700 disabled:opacity-50"
-                  disabled={busy}
-                  onClick={() => onApprove(name)}
-                >
+
+              <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-dashed border-rule-line pt-3">
+                <button className="btn-ghost" disabled={busy} onClick={() => onApprove(name)}>
                   Approve
                 </button>
-                <button
-                  className="rounded bg-slate-800 px-2 py-1 text-xs hover:bg-slate-700 disabled:opacity-50"
-                  disabled={busy}
-                  onClick={() => onReject(name)}
-                >
+                <button className="btn-ghost" disabled={busy} onClick={() => onReject(name)}>
                   Reject
                 </button>
-                <input
-                  className="w-36 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs"
-                  placeholder="Edit value"
-                  value={edits[name] ?? ""}
-                  onFocus={() =>
-                    setEdits((prev) => ({
-                      ...prev,
-                      [name]: prev[name] ?? String(fp.value ?? ""),
-                    }))
-                  }
-                  onChange={(e) => setEdits((prev) => ({ ...prev, [name]: e.target.value }))}
-                />
-                <button
-                  className="rounded bg-emerald-900 px-2 py-1 text-xs text-emerald-200 hover:bg-emerald-800 disabled:opacity-50"
-                  disabled={busy}
-                  onClick={() => onEdit(name)}
-                >
+                <label className="flex flex-col">
+                  <span className="form-label mb-0.5">Edit value</span>
+                  <input
+                    className="form-underline w-40 py-1 text-xs"
+                    placeholder="Edit value"
+                    value={edits[name] ?? ""}
+                    onFocus={() =>
+                      setEdits((prev) => ({
+                        ...prev,
+                        [name]: prev[name] ?? String(fp.value ?? ""),
+                      }))
+                    }
+                    onChange={(e) => setEdits((prev) => ({ ...prev, [name]: e.target.value }))}
+                  />
+                </label>
+                <button className="btn-primary !px-3 !py-1.5 text-xs" disabled={busy} onClick={() => onEdit(name)}>
                   Save edit
                 </button>
               </div>
@@ -320,18 +357,21 @@ export default function ReviewPage() {
       </div>
 
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-emerald-300">Propagation suggestion</h3>
-            <p className="mt-2 text-sm text-slate-300">
-              Field <span className="font-mono">{modal.field_name}</span>: change{" "}
-              <strong>{String(modal.old_value)}</strong> → <strong>{String(modal.new_value)}</strong> on{" "}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
+          <div className="panel max-w-md bg-paper p-6 shadow-none">
+            <h3 className="font-display text-lg uppercase tracking-stencil text-ink">
+              Propagation suggestion
+            </h3>
+            <p className="mt-3 font-sans text-sm text-ink-soft">
+              Field <span className="font-mono text-ink">{modal.field_name}</span>: change{" "}
+              <strong className="font-mono text-ink">{String(modal.old_value)}</strong> →{" "}
+              <strong className="font-mono text-ink">{String(modal.new_value)}</strong> on{" "}
               {modal.candidate_product_ids.length} other product(s) sharing template{" "}
-              <span className="font-mono">{modal.source_template_id}</span>?
+              <span className="font-mono text-ink">{modal.source_template_id}</span>?
             </p>
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-5 flex justify-end gap-2 border-t border-dashed border-rule-line pt-4">
               <button
-                className="rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:bg-slate-800"
+                className="btn-secondary"
                 onClick={async () => {
                   await propagationAction(modal.id, "dismiss");
                   setModal(null);
@@ -340,7 +380,7 @@ export default function ReviewPage() {
                 Dismiss
               </button>
               <button
-                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm hover:bg-emerald-500"
+                className="btn-primary"
                 onClick={async () => {
                   await propagationAction(modal.id, "apply");
                   setModal(null);

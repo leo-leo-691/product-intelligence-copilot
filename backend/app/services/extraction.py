@@ -46,6 +46,28 @@ FIELD_KEYWORDS: dict[str, dict[str, list[str]]] = {
         "operating_temp_c": ["temperature", "operating"],
         "ip_rating": ["ip", "ingress"],
     },
+    "motor": {
+        "manufacturer": ["manufacturer"],
+        "model_number": ["model"],
+        "motor_type": ["motor type", "induction", "type"],
+        "power_kw": ["power", "kw", "kW"],
+        "voltage_v": ["voltage", "v"],
+        "rpm": ["rpm", "speed"],
+        "frame_size": ["frame"],
+        "efficiency_class": ["efficiency", "ie2", "ie3"],
+        "enclosure": ["enclosure", "ip", "tefc"],
+    },
+    "fastener": {
+        "manufacturer": ["manufacturer"],
+        "part_number": ["part", "pn"],
+        "fastener_type": ["bolt", "screw", "type"],
+        "thread_size": ["thread", "m8", "unc"],
+        "length_mm": ["length", "mm"],
+        "material": ["material", "steel", "stainless"],
+        "grade": ["grade"],
+        "finish": ["finish", "zinc"],
+        "head_style": ["head", "hex"],
+    },
 }
 
 
@@ -120,6 +142,21 @@ def _mock_from_sku(sku: str, schema: CategorySchema) -> dict[str, FieldProvenanc
             "sensor_type": "Pressure",
             "measurement_range": "0-100 bar",
             "output_signal": "4-20 mA",
+        },
+        "motor": {
+            "manufacturer": "DriveMax",
+            "model_number": sku,
+            "motor_type": "Induction",
+            "power_kw": 5.5,
+            "voltage_v": 400,
+        },
+        "fastener": {
+            "manufacturer": "BoltPro",
+            "part_number": sku,
+            "fastener_type": "Hex Bolt",
+            "thread_size": "M10",
+            "length_mm": 40.0,
+            "material": "Steel",
         },
     }
     base = seed.get(schema.category_id, {})

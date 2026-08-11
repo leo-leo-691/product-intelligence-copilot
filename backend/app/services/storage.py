@@ -166,8 +166,10 @@ def compute_dashboard(batch_id: str | None = None) -> DashboardStats:
     high = med = low = 0
     approved = pending = 0
     conflicts = 0
+    outliers = 0
     for r in records:
         conflicts += len([c for c in r.conflicts if not c.resolved])
+        outliers += len(r.outliers or [])
         for fp in r.fields.values():
             stats.total_fields += 1
             if fp.confidence_score == ConfidenceBand.HIGH:
@@ -188,8 +190,15 @@ def compute_dashboard(batch_id: str | None = None) -> DashboardStats:
     stats.fields_pending = pending
     stats.conflicts_count = conflicts
     stats.propagations_applied = len([p for p in list_propagations("applied")])
-    # ~4 min per field manual entry estimate
     stats.estimated_minutes_saved = round(approved * 4.0 + high * 1.5, 1)
+    stats.outliers_flagged = outliers
+    try:
+        from backend.app.services.knowledge_graph import kg_summary
+
+        summary = kg_summary(limit=1)
+        stats.kg_nodes = sum(summary.get("node_counts", {}).values())
+    except Exception:
+        stats.kg_nodes = 0
     return stats
 
 

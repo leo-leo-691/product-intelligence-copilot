@@ -27,17 +27,6 @@ export interface FieldConflict {
   resolved: boolean;
 }
 
-export interface ProductRecord {
-  id: string;
-  sku: string;
-  category_id: string;
-  source_template_id?: string;
-  fields: Record<string, FieldProvenance>;
-  conflicts: FieldConflict[];
-  batch_id?: string;
-  status: string;
-}
-
 export interface DashboardStats {
   total_products: number;
   total_fields: number;
@@ -49,6 +38,23 @@ export interface DashboardStats {
   conflicts_count: number;
   propagations_applied: number;
   estimated_minutes_saved: number;
+  outliers_flagged?: number;
+  kg_nodes?: number;
+}
+
+export interface ProductRecord {
+  id: string;
+  sku: string;
+  category_id: string;
+  source_template_id?: string;
+  fields: Record<string, FieldProvenance>;
+  conflicts: FieldConflict[];
+  batch_id?: string;
+  status: string;
+  category_inference?: { category_id: string; reasoning: string; confidence: number };
+  language?: Record<string, unknown>;
+  outliers?: { field_name: string; message: string; value?: unknown }[];
+  kg?: Record<string, unknown>;
 }
 
 export interface PropagationSuggestion {
@@ -172,4 +178,21 @@ export async function runDemoBatch(): Promise<{ id: string; product_ids: string[
 export async function fetchEvalMatchRate() {
   const r = await fetch(`${API}/api/eval/match-rate`);
   return parseJson(r);
+}
+
+/** Trigger a browser file download from an API path. */
+export async function downloadExport(kind: "csv" | "json", approvedOnly = false): Promise<void> {
+  const r = await fetch(`${API}/api/export/${kind}?approved_only=${approvedOnly}`);
+  if (!r.ok) {
+    throw new Error(await r.text() || `Export failed (${r.status})`);
+  }
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = kind === "csv" ? "products.csv" : "products.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }

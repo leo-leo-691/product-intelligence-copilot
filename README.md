@@ -1,121 +1,77 @@
 # Product Intelligence Copilot
 
-Turn messy industrial product inputs (PDF, image, text, URL) into schema-validated catalog records with **computed confidence**, **cross-source conflicts**, **human review**, and **correction propagation**.
+Turn messy industrial product inputs (PDF, image, text, URL) into schema-validated catalog records with **computed confidence**, **conflicts**, **HITL review**, **correction propagation**, **outliers**, **multi-language**, and a **lightweight catalog knowledge graph**.
 
-## Quick start (Windows)
+## Deploy in 3 steps
 
-```bat
-cd "E:\Hackathon 2026\Unihack"
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python scripts\generate_samples.py
-python scripts\run_batch.py
-uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-In a second terminal:
-
-```bat
-cd frontend
-npm install
-npm run dev
-```
-
-Open http://localhost:5173 — click **Load 20-product demo batch** (or use pre-run data) → Review → Dashboard.
-
-Or run `scripts\start-dev.bat` to launch both processes.
-
-## Quick start (Docker)
+1. Copy env template and fill secrets:
 
 ```bash
 cp .env.example .env
-docker compose up --build
+# Edit .env — at minimum for production:
+# API_KEY=<strong-random>
+# APP_ENV=production
+# CORS_ORIGINS=https://your-frontend.example
+# ANTHROPIC_API_KEY=...   (optional but enables LLM/VLM/translate)
+# TAVILY_API_KEY=...      (optional live gap-fill)
 ```
 
-- API: http://localhost:8000/health  
-- UI: http://localhost:5173  
+2. Run with Docker:
 
-## Environment
-
-Copy `.env.example` → `.env`:
-
-| Variable | Purpose |
-|----------|---------|
-| `ANTHROPIC_API_KEY` | Claude structured extract + vision for images |
-| `ANTHROPIC_MODEL` | Default `claude-sonnet-4-20250514` |
-| `TAVILY_API_KEY` / `SERPAPI_API_KEY` | Live gap-fill search |
-| `CORS_ORIGINS` | Comma-separated allowed origins |
-| `APP_ENV` | `development` or `production` |
-| `LOG_LEVEL` | `INFO` / `DEBUG` |
-
-**Without keys:** labeled-text parsing + seeded conflict/gap stubs still run the full demo.
-
-## Demo path (judges)
-
-See [docs/DEMO.md](docs/DEMO.md). Signature moments:
-
-1. **Won’t hallucinate** — `VALVE-SPARSE-001` missing fields stay **not found**
-2. **Conflict** — `VALVE-CONFLICT-001` doc **250 psi** vs web **285 psi**
-3. **Propagation** — edit `body_material` on `VALVE-A-001` (`WCB` → `WCC`) → apply to sibling template SKUs
-4. **Scale** — Dashboard aggregates + gold-label match rate
-
-## Architecture
-
-```
-Ingest (PDF/text/URL/image)
-  → RAG-lite chunk retrieval
-  → Schema-constrained extraction (+ VLM for images when keyed)
-  → Computed confidence (method + agreement + validation + format)
-  → Conflict detection (no silent merge)
-  → Scoped gap-fill (≤2 web calls, missing required only)
-  → Human review / bulk-approve / conflict resolve
-  → Correction propagation (human-approved)
-  → JSON/CSV export + batch dashboard
+```bash
+docker compose up --build -d
 ```
 
-Confidence formula: [docs/CONFIDENCE.md](docs/CONFIDENCE.md)  
-Q&A prep: [docs/QA.md](docs/QA.md)
+- API: `http://localhost:8000/health`
+- UI: `http://localhost:5173`
 
-## API highlights
+3. Or run locally:
 
-| Endpoint | Purpose |
-|----------|---------|
-| `POST /api/ingest` | JSON text/URL ingest |
-| `POST /api/ingest/upload` | PDF + image upload |
-| `POST /api/batch/from-manifest` | Demo batch (reset + 20 SKUs) |
-| `PATCH /api/products/{id}/fields/{field}` | Approve / edit / reject |
-| `POST /api/products/{id}/conflicts/{field}/resolve` | Pick a conflict value |
-| `POST /api/propagations/{id}` | Apply / dismiss propagation |
-| `GET /api/dashboard` | Aggregate stats |
-| `GET /api/export/csv` · `/json` | Catalog export |
-| `GET /api/eval/match-rate` | Gold-label mini eval |
-| `DELETE /api/reset` | Clear SQLite store |
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python scripts/generate_samples.py
+python scripts/run_batch.py
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+```
 
-## Verification
+```bash
+cd frontend && npm install && npm run dev
+```
+
+When `API_KEY` is set, send header `X-API-Key: <value>` on `/api/*` (health stays public).
+
+## Feature coverage (Tiers 1–3)
+
+| Area | Status |
+|------|--------|
+| PDF / image / text / URL ingest | Yes — PDF tables + **page rasterization → VLM** when text is sparse |
+| 5 category schemas | Valve, Bearing, Sensor, **Motor**, **Fastener** |
+| Provenance + computed confidence | Yes |
+| Gap-fill (capped) + conflicts | Yes |
+| HITL + bulk-approve + export CSV/JSON | Yes |
+| Batch dashboard (26 sample SKUs) | Yes |
+| Category auto-infer | Yes (`auto` on ingest) |
+| Outlier consistency check | Yes |
+| Correction log + propagation | Yes (no model fine-tune — corrections logged for learning) |
+| Multi-language detect + optional translate | Yes |
+| Lightweight knowledge graph | Yes (`GET /api/kg`) |
+| Capped same-host crawl | Yes (max pages via env) |
+| API key auth for deploy | Yes (`API_KEY`) |
+| Model fine-tuning | **Not included** — use correction log + prompts instead |
+
+## Env reference
+
+See [`.env.example`](.env.example) for every knob (`PDF_RASTER_MAX_PAGES`, `GAP_FILL_MAX_CALLS`, `CRAWL_MAX_PAGES`, `KG_ENABLED`, etc.).
+
+## Demo
+
+See [docs/DEMO.md](docs/DEMO.md). Signature moments: sparse not-found, conflict 250 vs 285 psi, propagation WCB→WCC, dashboard aggregates.
+
+## Verify
 
 ```bash
 python scripts/smoke_test.py
 python scripts/run_batch.py
 ```
-
-Smoke covers E2E extract, conflict, sparse no-hallucination, propagation, and PDF path.
-
-## Layout
-
-```
-backend/app/     FastAPI pipeline + SQLite
-frontend/        React + Vite + Tailwind
-data/samples/    Manifest, text, PDF fixtures
-data/seeds/      Conflict + propagation seeds
-data/eval/       Gold labels
-scripts/         generate_samples, run_batch, smoke_test, start-dev
-docs/            CONFIDENCE, DEMO, QA
-```
-
-## Production notes (hackathon-ready)
-
-- SQLite with WAL; uploads capped via `MAX_UPLOAD_MB`
-- Structured logging + global exception handler
-- Lifespan startup initializes DB
-- Intentionally **not** included (Tier 3): auth, multi-tenancy, knowledge graph, fine-tuning, open crawling

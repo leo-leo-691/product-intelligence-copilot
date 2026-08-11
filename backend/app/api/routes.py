@@ -12,8 +12,11 @@ from pydantic import BaseModel, Field
 
 from backend.app.config import ROOT, UPLOAD_DIR, settings
 from backend.app.logging_config import setup_logging
+from backend.app.middleware.auth import ApiKeyMiddleware
 from backend.app.models.product import BatchRun, ProductInput, ProductRecord, utc_now
 from backend.app.schemas.categories import CATEGORIES, record_to_export_dict
+from backend.app.services.knowledge_graph import init_kg, kg_neighbors, kg_summary
+from backend.app.services.learning import init_learning, log_correction, recent_corrections
 from backend.app.services.pipeline import run_pipeline
 from backend.app.services.propagation import apply_propagation, find_propagation_candidates
 from backend.app.services.storage import (
@@ -36,32 +39,40 @@ logger = logging.getLogger(__name__)
 async def lifespan(_app: FastAPI):
     setup_logging(settings.log_level)
     init_db()
+    init_kg()
+    init_learning()
     logger.info("Product Intelligence Copilot API ready (env=%s)", settings.app_env)
     yield
 
 
 app = FastAPI(
     title="Product Intelligence Copilot",
-    version="1.0.0",
-    description="Schema-validated product intelligence with computed confidence, conflicts, and correction propagation.",
+    version="1.1.0",
+    description="Schema-validated product intelligence with computed confidence, conflicts, correction propagation, KG, and deploy-ready API auth.",
     lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
+    allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()] or ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ApiKeyMiddleware)
 
 
 @app.exception_handler(Exception)
 async def unhandled_exception(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     logger.exception("Unhandled error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error", "error": str(exc) if settings.app_env != "production" else "unexpected"},
+        content={
+            "detail": "Internal server error",
+            "error": str(exc) if settings.app_env != "production" else "unexpected",
+        },
     )
 
 
@@ -69,9 +80,11 @@ async def unhandled_exception(request: Request, exc: Exception):
 def health():
     return {
         "status": "ok",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "anthropic_configured": bool(settings.anthropic_api_key),
         "web_search_configured": bool(settings.tavily_api_key or settings.serpapi_api_key),
+        "api_auth_required": bool(settings.api_key),
+        "kg_enabled": settings.kg_enabled,
         "env": settings.app_env,
     }
 
@@ -86,12 +99,13 @@ def get_categories():
 
 class IngestBody(BaseModel):
     sku: str = Field(min_length=1, max_length=128)
-    category_id: str
+    category_id: str | None = "auto"
     text: str | None = None
     url: str | None = None
     source_template_id: str | None = None
     seed_web_overrides: dict[str, Any] | None = None
     batch_id: str | None = None
+    title: str | None = None
 
 
 async def _save_upload(sku: str, upload: UploadFile, subdir: str) -> str:
@@ -103,7 +117,7 @@ async def _save_upload(sku: str, upload: UploadFile, subdir: str) -> str:
         raise HTTPException(413, f"File exceeds {settings.max_upload_mb}MB limit")
     dest = UPLOAD_DIR / subdir
     dest.mkdir(parents=True, exist_ok=True)
-    safe_name = "".join(c for c in upload.filename if c.isalnum() or c in "._-")
+    safe_name = "".join(c for c in upload.filename if c.isalnum() or c in "._-") or "upload.bin"
     dest_file = dest / f"{sku}_{safe_name}"
     dest_file.write_bytes(data)
     return str(dest_file.relative_to(ROOT)).replace("\\", "/")
@@ -111,17 +125,19 @@ async def _save_upload(sku: str, upload: UploadFile, subdir: str) -> str:
 
 @app.post("/api/ingest", response_model=ProductRecord)
 async def ingest_json(body: IngestBody):
-    if body.category_id not in CATEGORIES:
+    cat = body.category_id or "auto"
+    if cat not in CATEGORIES and cat not in ("auto", "infer"):
         raise HTTPException(400, "Unknown category")
     if not body.text and not body.url:
         raise HTTPException(400, "Provide text and/or url")
     inp = ProductInput(
         sku=body.sku.strip(),
-        category_id=body.category_id,
+        category_id=None if cat in ("auto", "infer") else cat,
         text=body.text,
         url=body.url,
         source_template_id=body.source_template_id,
         seed_web_overrides=body.seed_web_overrides,
+        title=body.title,
     )
     try:
         record = await run_pipeline(inp, batch_id=body.batch_id)
@@ -134,35 +150,42 @@ async def ingest_json(body: IngestBody):
 @app.post("/api/ingest/upload", response_model=ProductRecord)
 async def ingest_upload(
     sku: str = Form(...),
-    category_id: str = Form(...),
+    category_id: str = Form("auto"),
     text: str | None = Form(None),
     url: str | None = Form(None),
     source_template_id: str | None = Form(None),
     batch_id: str | None = Form(None),
+    title: str | None = Form(None),
     pdf: UploadFile | None = File(None),
     image: UploadFile | None = File(None),
 ):
-    if category_id not in CATEGORIES:
+    if category_id not in CATEGORIES and category_id not in ("auto", "infer"):
         raise HTTPException(400, "Unknown category")
 
     pdf_path = None
     image_path = None
-    if pdf and pdf.filename:
-        pdf_path = await _save_upload(sku, pdf, "pdf")
-    if image and image.filename:
-        image_path = await _save_upload(sku, image, "images")
+    try:
+        if pdf and pdf.filename:
+            pdf_path = await _save_upload(sku, pdf, "pdf")
+        if image and image.filename:
+            image_path = await _save_upload(sku, image, "images")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(400, f"Upload failed: {e}") from e
 
     if not any([text, url, pdf_path, image_path]):
         raise HTTPException(400, "Provide text, url, pdf, and/or image")
 
     inp = ProductInput(
         sku=sku.strip(),
-        category_id=category_id,
+        category_id=None if category_id in ("auto", "infer") else category_id,
         text=text,
         url=url,
         pdf_path=pdf_path,
         image_path=image_path,
         source_template_id=source_template_id,
+        title=title,
     )
     try:
         record = await run_pipeline(inp, batch_id=batch_id)
@@ -231,6 +254,17 @@ def review_field(product_id: str, field_name: str, body: FieldReview):
 
     suggestion = None
     if body.review_status == "edited" and body.value is not None:
+        try:
+            log_correction(
+                sku=r.sku,
+                category_id=r.category_id,
+                source_template_id=r.source_template_id,
+                field_name=field_name,
+                old_value=old_value,
+                new_value=fp.value,
+            )
+        except Exception:
+            logger.exception("correction log failed")
         suggestion = find_propagation_candidates(
             list_products(), product_id, field_name, old_value, fp.value
         )
@@ -424,11 +458,20 @@ def export_json(approved_only: bool = True):
     records = list_products()
     if approved_only:
         records = [r for r in records if r.status == "approved"]
+    if not records:
+        records = list_products()
+    if not records:
+        raise HTTPException(404, "No records to export")
     payload = [
         {"sku": r.sku, "category_id": r.category_id, "status": r.status, **record_to_export_dict(r.fields)}
         for r in records
     ]
-    return payload
+    body = json.dumps(payload, indent=2, default=str)
+    return StreamingResponse(
+        iter([body]),
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=products.json"},
+    )
 
 
 @app.get("/api/export/csv")
@@ -441,18 +484,32 @@ def export_csv(approved_only: bool = True):
         records = list_products()
     if not records:
         raise HTTPException(404, "No records to export")
-    fieldnames = ["sku", "category_id", "status"] + list(records[0].fields.keys())
+
+    # Union of fields across categories (valve/bearing/sensor differ)
+    field_keys: list[str] = []
+    seen: set[str] = set()
+    for r in records:
+        for k in r.fields.keys():
+            if k not in seen:
+                seen.add(k)
+                field_keys.append(k)
+
+    fieldnames = ["sku", "category_id", "status"] + field_keys
     buf = io.StringIO()
-    w = csv.DictWriter(buf, fieldnames=fieldnames)
+    w = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
     w.writeheader()
     for r in records:
-        row = {"sku": r.sku, "category_id": r.category_id, "status": r.status}
-        for k, v in r.fields.items():
-            row[k] = v.value if not v.not_found else ""
+        row: dict[str, Any] = {"sku": r.sku, "category_id": r.category_id, "status": r.status}
+        for k in field_keys:
+            fp = r.fields.get(k)
+            if fp is None or fp.not_found:
+                row[k] = ""
+            else:
+                row[k] = fp.value
         w.writerow(row)
     return StreamingResponse(
         iter([buf.getvalue()]),
-        media_type="text/csv",
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=products.csv"},
     )
 
@@ -499,3 +556,28 @@ def eval_match_rate():
         "high_precision_proxy": round(matched_high / total, 3) if total else 0,
         "details": details[:50],
     }
+
+
+@app.get("/api/kg")
+def api_kg_summary():
+    try:
+        return kg_summary()
+    except Exception as e:
+        logger.exception("KG summary failed")
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/api/kg/node/{node_id:path}")
+def api_kg_node(node_id: str):
+    try:
+        return kg_neighbors(node_id)
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.get("/api/learning/corrections")
+def api_corrections(limit: int = 50):
+    try:
+        return recent_corrections(min(limit, 200))
+    except Exception as e:
+        raise HTTPException(500, str(e)) from e
