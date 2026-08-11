@@ -1,0 +1,7 @@
+SOURCE_TEMPLATE: acmeflow_valve_series_a
+AcmeFlow Valve Series A — partial listing
+SKU: VALVE-SPARSE-001
+Manufacturer: AcmeFlow Industries
+Model Number: VALVE-SPARSE-001
+Valve Type: Check
+Nominal Size (in): 1.5

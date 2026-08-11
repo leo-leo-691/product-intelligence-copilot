@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "description": "Sample product manifest for batch demo. Text files live beside this manifest; add real PDFs under data/samples/pdf/ and reference pdf_path.",
+  "products": [
+    {"sku": "VALVE-A-001", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_001.txt", "pdf_file": "pdf/valve_acmeflow_001.pdf", "source_template_id": "acmeflow_valve_series_a"},
+    {"sku": "VALVE-A-002", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_002.txt", "source_template_id": "acmeflow_valve_series_a"},
+    {"sku": "VALVE-A-003", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_003.txt", "source_template_id": "acmeflow_valve_series_a"},
+    {"sku": "VALVE-A-004", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_004.txt", "source_template_id": "acmeflow_valve_series_a"},
+    {"sku": "VALVE-A-005", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_005.txt", "source_template_id": "acmeflow_valve_series_a"},
+    {"sku": "VALVE-CONFLICT-001", "category_id": "industrial_valve", "text_file": "text/valve_conflict_001.txt", "pdf_file": "pdf/valve_conflict_001.pdf", "source_template_id": "acmeflow_valve_series_a", "notes": "Doc 250 psi vs web 285 psi"},
+    {"sku": "VALVE-SPARSE-001", "category_id": "industrial_valve", "text_file": "text/valve_sparse_001.txt", "source_template_id": "acmeflow_valve_series_a"},
+    {"sku": "BEAR-P-101", "category_id": "bearing", "text_file": "text/bearing_101.txt", "source_template_id": "precisionroll_bearing_std"},
+    {"sku": "BEAR-P-102", "category_id": "bearing", "text_file": "text/bearing_102.txt", "source_template_id": "precisionroll_bearing_std"},
+    {"sku": "BEAR-P-103", "category_id": "bearing", "text_file": "text/bearing_103.txt", "source_template_id": "precisionroll_bearing_std"},
+    {"sku": "BEAR-P-104", "category_id": "bearing", "text_file": "text/bearing_104.txt", "source_template_id": "precisionroll_bearing_std"},
+    {"sku": "BEAR-P-105", "category_id": "bearing", "text_file": "text/bearing_105.txt", "source_template_id": "precisionroll_bearing_std"},
+    {"sku": "SENS-T-201", "category_id": "sensor", "text_file": "text/sensor_201.txt"},
+    {"sku": "SENS-T-202", "category_id": "sensor", "text_file": "text/sensor_202.txt"},
+    {"sku": "SENS-T-203", "category_id": "sensor", "text_file": "text/sensor_203.txt"},
+    {"sku": "SENS-T-204", "category_id": "sensor", "text_file": "text/sensor_204.txt"},
+    {"sku": "SENS-T-205", "category_id": "sensor", "text_file": "text/sensor_205.txt"},
+    {"sku": "VALVE-A-006", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_006.txt", "source_template_id": "acmeflow_valve_series_a"},
+    {"sku": "VALVE-A-007", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_007.txt", "source_template_id": "acmeflow_valve_series_a"},
+    {"sku": "VALVE-A-008", "category_id": "industrial_valve", "text_file": "text/valve_acmeflow_008.txt", "source_template_id": "acmeflow_valve_series_a"}
+  ]
+}

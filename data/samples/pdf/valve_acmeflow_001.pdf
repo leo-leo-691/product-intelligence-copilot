@@ -1,0 +1,48 @@
+%PDF-1.4
+1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj
+2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj
+3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>endobj
+4 0 obj<< /Length 457 >>stream
+BT
+/F1 10 Tf
+50 780 Td
+12 TL
+(SOURCE_TEMPLATE: acmeflow_valve_series_a) Tj
+T*
+(AcmeFlow Valve Series A ? Datasheet) Tj
+T*
+(SKU: VALVE-A-001) Tj
+T*
+(Manufacturer: AcmeFlow Industries) Tj
+T*
+(Model Number: VALVE-A-001) Tj
+T*
+(Valve Type: Ball) Tj
+T*
+(Nominal Size \(in\): 1) Tj
+T*
+(Pressure Class: ANSI 150) Tj
+T*
+(Body Material: WCB) Tj
+T*
+(Max Operating Pressure \(psi\): 250) Tj
+T*
+(Temperature Range F: -20 to 400) Tj
+T*
+(End Connection: RF Flanged) Tj
+ET
+endstream
+endobj
+5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000056 00000 n 
+0000000111 00000 n 
+0000000235 00000 n 
+0000000741 00000 n 
+trailer<< /Size 6 /Root 1 0 R >>
+startxref
+809
+%%EOF

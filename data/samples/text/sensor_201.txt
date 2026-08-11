@@ -1,0 +1,10 @@
+SenseTek Pressure Transmitter
+Model Number: SENS-T-201
+Manufacturer: SenseTek
+Sensor Type: Pressure
+Measurement Range: 0-100 bar
+Output Signal: 4-20 mA
+Supply Voltage V: 24
+Accuracy Percent: 0.25
+Operating Temp C: -40 to 85
+IP Rating: IP67

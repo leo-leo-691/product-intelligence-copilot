@@ -1,0 +1,175 @@
+export type ConfidenceBand = "High" | "Medium" | "Low";
+
+export interface FieldProvenance {
+  value: unknown;
+  confidence_score: ConfidenceBand;
+  confidence_raw: number;
+  confidence_reasoning: Record<string, number>;
+  source_type?: string;
+  source_snippet?: string;
+  source_location?: string;
+  extraction_method: string;
+  needs_review: boolean;
+  review_status: string;
+  not_found: boolean;
+  validation_errors: string[];
+}
+
+export interface FieldConflict {
+  field_name: string;
+  candidates: {
+    value: unknown;
+    source_type: string;
+    source_snippet?: string;
+    source_location?: string;
+    extraction_method: string;
+  }[];
+  resolved: boolean;
+}
+
+export interface ProductRecord {
+  id: string;
+  sku: string;
+  category_id: string;
+  source_template_id?: string;
+  fields: Record<string, FieldProvenance>;
+  conflicts: FieldConflict[];
+  batch_id?: string;
+  status: string;
+}
+
+export interface DashboardStats {
+  total_products: number;
+  total_fields: number;
+  high_confidence_pct: number;
+  medium_confidence_pct: number;
+  low_confidence_pct: number;
+  fields_approved: number;
+  fields_pending: number;
+  conflicts_count: number;
+  propagations_applied: number;
+  estimated_minutes_saved: number;
+}
+
+export interface PropagationSuggestion {
+  id: string;
+  source_template_id: string;
+  field_name: string;
+  old_value: unknown;
+  new_value: unknown;
+  source_product_id: string;
+  candidate_product_ids: string[];
+  status: string;
+}
+
+export interface HealthInfo {
+  status: string;
+  anthropic_configured: boolean;
+  web_search_configured: boolean;
+  env?: string;
+}
+
+const API = "";
+
+async function parseJson<T>(r: Response): Promise<T> {
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(text || `HTTP ${r.status}`);
+  }
+  return r.json();
+}
+
+export async function fetchHealth(): Promise<HealthInfo> {
+  const r = await fetch(`${API}/health`);
+  return parseJson(r);
+}
+
+export async function fetchProducts(): Promise<ProductRecord[]> {
+  const r = await fetch(`${API}/api/products`);
+  return parseJson(r);
+}
+
+export async function fetchProduct(id: string): Promise<ProductRecord> {
+  const r = await fetch(`${API}/api/products/${id}`);
+  return parseJson(r);
+}
+
+export async function fetchDashboard(): Promise<DashboardStats> {
+  const r = await fetch(`${API}/api/dashboard`);
+  return parseJson(r);
+}
+
+export async function ingestText(body: {
+  sku: string;
+  category_id: string;
+  text?: string;
+  url?: string;
+}): Promise<ProductRecord> {
+  const r = await fetch(`${API}/api/ingest`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson(r);
+}
+
+export async function reviewField(
+  productId: string,
+  fieldName: string,
+  review_status: string,
+  value?: unknown
+): Promise<{ product: ProductRecord; propagation_suggestion?: PropagationSuggestion }> {
+  const r = await fetch(`${API}/api/products/${productId}/fields/${fieldName}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ review_status, value }),
+  });
+  return parseJson(r);
+}
+
+export async function resolveConflict(
+  productId: string,
+  fieldName: string,
+  chosen_value: unknown
+): Promise<ProductRecord> {
+  const r = await fetch(`${API}/api/products/${productId}/conflicts/${fieldName}/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chosen_value }),
+  });
+  return parseJson(r);
+}
+
+export async function bulkApproveHigh(productId: string): Promise<ProductRecord> {
+  const r = await fetch(`${API}/api/products/${productId}/bulk-approve-high`, { method: "POST" });
+  return parseJson(r);
+}
+
+export async function approveRecord(productId: string): Promise<ProductRecord> {
+  const r = await fetch(`${API}/api/products/${productId}/approve-record`, { method: "POST" });
+  return parseJson(r);
+}
+
+export async function propagationAction(id: string, action: "apply" | "dismiss") {
+  const r = await fetch(`${API}/api/propagations/${id}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action }),
+  });
+  return parseJson(r);
+}
+
+export async function fetchCategories() {
+  const r = await fetch(`${API}/api/categories`);
+  return parseJson(r);
+}
+
+export async function runDemoBatch(): Promise<{ id: string; product_ids: string[] }> {
+  const r = await fetch(`${API}/api/batch/from-manifest?reset=true`, { method: "POST" });
+  return parseJson(r);
+}
+
+export async function fetchEvalMatchRate() {
+  const r = await fetch(`${API}/api/eval/match-rate`);
+  return parseJson(r);
+}

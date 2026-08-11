@@ -1,0 +1,8 @@
+{
+  "scenario": "document_vs_web_pressure",
+  "sku": "VALVE-CONFLICT-001",
+  "description": "Datasheet lists 250 psi; seeded web gap-fill / manufacturer page lists 285 psi. Pipeline must surface conflict, not auto-merge.",
+  "document_value": 250,
+  "web_value": 285,
+  "field": "max_operating_pressure_psi"
+}

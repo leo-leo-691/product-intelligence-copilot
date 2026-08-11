@@ -1,0 +1,1 @@
+"""Product Intelligence Copilot backend."""

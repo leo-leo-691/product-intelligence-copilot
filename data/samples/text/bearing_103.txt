@@ -1,0 +1,10 @@
+SOURCE_TEMPLATE: precisionroll_bearing_std
+PrecisionRoll Bearing — Catalog excerpt
+Part Number: BEAR-P-103
+Manufacturer: PrecisionRoll
+Bearing Type: Deep Groove Ball
+Bore mm: 35
+Outer Diameter mm: 50
+Width mm: 15
+Dynamic Load kN: 13
+Max rpm: 7400

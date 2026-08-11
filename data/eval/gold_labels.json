@@ -1,0 +1,7 @@
+[
+  {"sku": "VALVE-A-001", "fields": {"manufacturer": "AcmeFlow Industries", "nominal_size_in": 1, "body_material": "WCB"}},
+  {"sku": "VALVE-A-002", "fields": {"manufacturer": "AcmeFlow Industries", "nominal_size_in": 1.5, "body_material": "WCB"}},
+  {"sku": "BEAR-P-101", "fields": {"manufacturer": "PrecisionRoll", "bore_mm": 25}},
+  {"sku": "SENS-T-201", "fields": {"manufacturer": "SenseTek", "output_signal": "4-20 mA"}},
+  {"sku": "VALVE-CONFLICT-001", "fields": {"max_operating_pressure_psi": 250}}
+]

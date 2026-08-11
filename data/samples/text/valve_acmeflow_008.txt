@@ -1,0 +1,12 @@
+SOURCE_TEMPLATE: acmeflow_valve_series_a
+AcmeFlow Valve Series A — Datasheet
+SKU: VALVE-A-008
+Manufacturer: AcmeFlow Industries
+Model Number: VALVE-A-008
+Valve Type: Ball
+Nominal Size (in): 8
+Pressure Class: ANSI 150
+Body Material: WCB
+Max Operating Pressure (psi): 250
+Temperature Range F: -20 to 400
+End Connection: RF Flanged

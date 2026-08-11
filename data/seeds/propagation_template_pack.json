@@ -1,0 +1,11 @@
+{
+  "source_template_id": "acmeflow_valve_series_a",
+  "manufacturer_layout": "AcmeFlow Valve Series A table block",
+  "propagation_demo": {
+    "field_to_correct": "body_material",
+    "wrong_value": "WCB",
+    "correct_value": "WCC",
+    "instruction": "Edit body_material on VALVE-A-001 from WCB to WCC; system should suggest VALVE-A-002 through VALVE-A-005."
+  },
+  "skus": ["VALVE-A-001", "VALVE-A-002", "VALVE-A-003", "VALVE-A-004", "VALVE-A-005"]
+}

@@ -1,0 +1,10 @@
+SOURCE_TEMPLATE: acmeflow_valve_series_a
+AcmeFlow Valve Series A — Datasheet
+SKU: VALVE-CONFLICT-001
+Manufacturer: AcmeFlow Industries
+Model Number: VALVE-CONFLICT-001
+Valve Type: Gate
+Nominal Size (in): 3
+Pressure Class: ANSI 300
+Body Material: CF8M
+Max Operating Pressure (psi): 250
