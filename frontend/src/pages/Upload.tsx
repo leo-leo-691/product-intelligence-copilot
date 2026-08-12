@@ -138,7 +138,7 @@ export default function UploadPage() {
             className="form-underline mt-1 h-40 resize-y"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Paste datasheet text, or use Load demo batch"
+            placeholder="Paste datasheet text here"
           />
         </label>
 
@@ -165,7 +165,7 @@ export default function UploadPage() {
             />
           </label>
           <label className="block">
-            <span className="form-label">Image (optional, VLM when API key set)</span>
+            <span className="form-label">Image (optional)</span>
             <input
               type="file"
               accept="image/*"
