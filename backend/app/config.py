@@ -16,6 +16,10 @@ DB_PATH = STORAGE_DIR / "copilot.db"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore")
 
+    # LLM provider: gemini (default) | anthropic
+    llm_provider: str = "gemini"
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-3.1-flash-lite"
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-4-20250514"
     tavily_api_key: str | None = None

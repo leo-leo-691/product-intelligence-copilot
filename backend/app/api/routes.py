@@ -78,10 +78,17 @@ async def unhandled_exception(request: Request, exc: Exception):
 
 @app.get("/health")
 def health():
+    from backend.app.llm import get_llm_provider
+
+    provider = get_llm_provider()
+    llm_configured = provider.is_configured()
     return {
         "status": "ok",
-        "version": "1.1.0",
-        "anthropic_configured": bool(settings.anthropic_api_key),
+        "version": "1.2.0",
+        "llm_provider": provider.name,
+        "llm_configured": llm_configured,
+        # Backward-compatible alias (true when selected provider has a key)
+        "anthropic_configured": llm_configured,
         "web_search_configured": bool(settings.tavily_api_key or settings.serpapi_api_key),
         "api_auth_required": bool(settings.api_key),
         "kg_enabled": settings.kg_enabled,

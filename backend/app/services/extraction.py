@@ -1,12 +1,9 @@
-import json
 import re
 from pathlib import Path
-from typing import Any
 
-from backend.app.config import settings
-from backend.app.schemas.categories import CategorySchema, CATEGORIES
+from backend.app.llm import get_llm_service
+from backend.app.schemas.categories import CategorySchema
 from backend.app.schemas.fields import (
-    ConfidenceBand,
     ExtractionMethod,
     FieldProvenance,
     SourceType,
@@ -177,55 +174,13 @@ def _mock_from_sku(sku: str, schema: CategorySchema) -> dict[str, FieldProvenanc
 
 
 def extract_with_llm(text: str, schema: CategorySchema, sku: str) -> dict[str, FieldProvenance] | None:
-    if not settings.anthropic_api_key:
-        return None
-    try:
-        import anthropic
-
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        field_specs = [
-            {"name": f.name, "type": f.type, "required": f.required, "unit": f.unit}
-            for f in schema.fields
-        ]
-        context = retrieve_relevant_chunks(
-            text,
-            [f.name for f in schema.fields],
-            FIELD_KEYWORDS.get(schema.category_id, {}),
-        )
-        prompt = f"""Extract product fields for SKU {sku} from the context. Return ONLY valid JSON object mapping field names to:
-{{"value": ..., "source_snippet": "quote from text", "source_location": "page or section"}}
-Use null for missing values — never invent.
-Fields: {json.dumps(field_specs)}
-Context:
-{context[:12000]}
-"""
-        msg = client.messages.create(
-            model=settings.anthropic_model,
-            max_tokens=2048,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = msg.content[0].text  # type: ignore
-        start = raw.find("{")
-        end = raw.rfind("}") + 1
-        data = json.loads(raw[start:end])
-        out: dict[str, FieldProvenance] = {}
-        for fdef in schema.fields:
-            item = data.get(fdef.name) or {}
-            val = item.get("value") if isinstance(item, dict) else item
-            if val is None:
-                out[fdef.name] = FieldProvenance(not_found=True)
-            else:
-                out[fdef.name] = FieldProvenance(
-                    value=val,
-                    source_type=SourceType.DOCUMENT,
-                    source_snippet=item.get("source_snippet") if isinstance(item, dict) else None,
-                    source_location=item.get("source_location") if isinstance(item, dict) else None,
-                    extraction_method=ExtractionMethod.TEXT_LLM,
-                    not_found=False,
-                )
-        return out
-    except Exception:
-        return None
+    """Extract via configured LLM provider (Gemini or Claude). Never invents values."""
+    context = retrieve_relevant_chunks(
+        text,
+        [f.name for f in schema.fields],
+        FIELD_KEYWORDS.get(schema.category_id, {}),
+    )
+    return get_llm_service().extract_fields_from_text(context, schema, sku)
 
 
 def extract_fields(text: str, schema: CategorySchema, sku: str) -> dict[str, FieldProvenance]:

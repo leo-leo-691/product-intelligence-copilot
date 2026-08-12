@@ -5,7 +5,6 @@ import json
 import logging
 import re
 
-from backend.app.config import settings
 from backend.app.schemas.categories import CATEGORIES
 
 logger = logging.getLogger(__name__)
@@ -72,30 +71,26 @@ def infer_category(
 
 
 def _llm_infer(text: str) -> tuple[str, str, float] | None:
-    if not settings.anthropic_api_key or not text.strip():
+    if not text.strip():
         return None
     try:
-        import anthropic
+        from backend.app.llm import get_llm_service
 
+        service = get_llm_service()
+        if not service.is_configured():
+            return None
         cats = [{"id": c.category_id, "name": c.display_name} for c in CATEGORIES.values()]
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        msg = client.messages.create(
-            model=settings.anthropic_model,
+        result = service.complete_json(
+            prompt=(
+                "Infer the best product category. Return ONLY JSON: "
+                '{"category_id":"...","reasoning":"...","confidence":0.0-1.0}\n'
+                f"Categories: {json.dumps(cats)}\nText:\n{text[:3500]}"
+            ),
             max_tokens=400,
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        "Infer the best product category. Return ONLY JSON: "
-                        '{"category_id":"...","reasoning":"...","confidence":0.0-1.0}\n'
-                        f"Categories: {json.dumps(cats)}\nText:\n{text[:3500]}"
-                    ),
-                }
-            ],
         )
-        raw = msg.content[0].text  # type: ignore[union-attr]
-        start, end = raw.find("{"), raw.rfind("}") + 1
-        data = json.loads(raw[start:end])
+        if not result:
+            return None
+        data = result.data
         cid = data.get("category_id")
         if cid in CATEGORIES:
             return cid, str(data.get("reasoning") or "LLM inference"), float(data.get("confidence") or 0.7)

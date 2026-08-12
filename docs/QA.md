@@ -22,7 +22,7 @@ Deterministic labeled-text parser + mock extractor still produce a reviewable re
 
 ## What about images / scanned pages?
 
-With `ANTHROPIC_API_KEY`, missing fields are filled via vision-LLM (`backend/app/services/vision.py`) and tagged `source: image` / `vision-LLM`. Without a key, images are noted in ingest text and left for review.
+With a configured LLM (`LLM_PROVIDER=gemini` + `GEMINI_API_KEY`, or `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`), missing fields are filled via vision-LLM (`backend/app/services/vision.py`) and tagged `source: image` / `vision-LLM`. Without a Gemini key (default provider), images are noted in ingest text and left for review / offline demo paths.
 
 ## RAG?
 

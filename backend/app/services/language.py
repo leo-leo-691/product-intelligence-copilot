@@ -1,7 +1,6 @@
 """Multi-language detection + optional English normalization."""
 from __future__ import annotations
 
-import json
 import logging
 import re
 from typing import Any
@@ -73,40 +72,35 @@ def detect_language(text: str) -> dict[str, Any]:
 
 
 def maybe_normalize_to_english(text: str, lang_meta: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    """If non-English and Anthropic keyed, translate to English for extraction."""
+    """If non-English and LLM configured, translate to English for extraction."""
     meta = dict(lang_meta)
     src = meta.get("source_language")
     if not settings.translate_enabled or src in (None, "en", "unknown"):
         return text, meta
-    if not settings.anthropic_api_key:
+
+    from backend.app.llm import get_llm_service
+
+    service = get_llm_service()
+    if not service.is_configured():
         meta["reasoning"] = (meta.get("reasoning") or "") + "; translation skipped (no API key)"
         return text, meta
 
     try:
-        import anthropic
-
-        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        msg = client.messages.create(
-            model=settings.anthropic_model,
+        result = service.complete_json(
+            prompt=(
+                f"Translate the following industrial datasheet text from {src} to English. "
+                "Preserve numbers, units, and part numbers exactly. "
+                'Return ONLY JSON: {"english_text":"...","translation_confidence":0.0-1.0}\n\n'
+                f"{text[:8000]}"
+            ),
             max_tokens=4096,
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"Translate the following industrial datasheet text from {src} to English. "
-                        "Preserve numbers, units, and part numbers exactly. "
-                        'Return ONLY JSON: {"english_text":"...","translation_confidence":0.0-1.0}\n\n'
-                        f"{text[:8000]}"
-                    ),
-                }
-            ],
         )
-        raw = msg.content[0].text  # type: ignore[union-attr]
-        start, end = raw.find("{"), raw.rfind("}") + 1
-        data = json.loads(raw[start:end])
-        english = data.get("english_text") or text
+        if not result:
+            meta["reasoning"] = (meta.get("reasoning") or "") + "; translation skipped"
+            return text, meta
+        english = result.data.get("english_text") or text
         meta["translation_applied"] = True
-        meta["translation_confidence"] = float(data.get("translation_confidence") or 0.7)
+        meta["translation_confidence"] = float(result.data.get("translation_confidence") or 0.7)
         meta["normalized_to"] = "en"
         meta["reasoning"] = (meta.get("reasoning") or "") + "; LLM translation applied"
         return english, meta
