@@ -54,18 +54,18 @@ The system **does not hallucinate missing required fields**. Gap-fill via Tavily
 ┌────────────────────────────▼────────────────────────────────────┐
 │                     Ingestion & preprocessing                   │
 │   PDF tables · sparse-page rasterization · URL crawl (capped)   │
-│         Multi-language detect · optional LLM translate            │
+│         Multi-language detect · optional LLM translate          │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
-│                    Category inference (auto)                      │
-│              Keyword heuristics → optional LLM refine             │
+│                    Category inference (auto)                    │
+│              Keyword heuristics → optional LLM refine           │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
 │                      Extraction engine                          │
 │   RAG-lite chunk retrieval → LLM structured extract (+ VLM)     │
-│              Same Pydantic schemas regardless of provider         │
+│              Same Pydantic schemas regardless of provider       │
 └────────────────────────────┬────────────────────────────────────┘
                              │
           ┌──────────────────┼──────────────────┐
@@ -79,9 +79,9 @@ The system **does not hallucinate missing required fields**. Gap-fill via Tavily
           └──────────────────┼──────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
-│   Confidence · Conflicts · Outliers · Knowledge graph · HITL      │
-│              Review UI · Propagation · CSV/JSON export              │
-└───────────────────────────────────────────────────────────────────┘
+│   Confidence · Conflicts · Outliers · Knowledge graph · HITL    │
+│              Review UI · Propagation · CSV/JSON export          │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 **LLM abstraction** — business logic never instantiates provider SDKs directly:
@@ -114,7 +114,7 @@ Tavily and SerpAPI remain a separate search layer for web gap-fill only.
 ### Option A: Offline demo (no API keys required)
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/leo-leo-691/product-intelligence-copilot.git
 cd Unihack
 
 python -m venv .venv
@@ -384,4 +384,6 @@ Smoke tests cover: clean extraction, conflict detection, sparse no-hallucination
 
 ## License
 
-MIT *(or update with your chosen license)*
+Copyright (c) 2026 Product Intelligence Copilot Team
+
+This project is licensed under the MIT License.
