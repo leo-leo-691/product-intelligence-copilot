@@ -42,9 +42,9 @@ export default function App() {
             <span
               title={
                 health
-                  ? `LLM: ${health.anthropic_configured ? "on" : "off"} · Search: ${
-                      health.web_search_configured ? "on" : "off"
-                    }`
+                  ? `LLM (${health.llm_provider ?? "gemini"}): ${
+                      (health.llm_configured ?? health.anthropic_configured) ? "on" : "off"
+                    } · Search: ${health.web_search_configured ? "on" : "off"}`
                   : "API unreachable"
               }
             >

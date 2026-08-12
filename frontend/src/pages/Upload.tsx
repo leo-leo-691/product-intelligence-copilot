@@ -179,7 +179,7 @@ export default function UploadPage() {
 
         <div className="mt-8 flex flex-wrap gap-3 border-t border-dashed border-rule-line pt-5">
           <button type="submit" disabled={loading} className="btn-primary">
-            {loading ? "Processing…" : "Run pipeline"}
+            {loading ? "Processing…" : "Run"}
           </button>
           <Link to="/dashboard" className="btn-secondary">
             Open dashboard

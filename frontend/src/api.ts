@@ -70,6 +70,8 @@ export interface PropagationSuggestion {
 
 export interface HealthInfo {
   status: string;
+  llm_provider?: string;
+  llm_configured?: boolean;
   anthropic_configured: boolean;
   web_search_configured: boolean;
   env?: string;
