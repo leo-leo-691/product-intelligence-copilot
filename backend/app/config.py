@@ -42,5 +42,10 @@ class Settings(BaseSettings):
     translate_enabled: bool = True
     kg_enabled: bool = True
 
+    def cors_origin_list(self) -> list[str]:
+        """Parsed CORS origins (trailing slashes stripped)."""
+        origins = [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
+        return origins or ["*"]
+
 
 settings = Settings()

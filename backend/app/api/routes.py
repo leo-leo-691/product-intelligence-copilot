@@ -41,7 +41,18 @@ async def lifespan(_app: FastAPI):
     init_db()
     init_kg()
     init_learning()
-    logger.info("Product Intelligence Copilot API ready (env=%s)", settings.app_env)
+    origins = settings.cors_origin_list()
+    if settings.app_env == "production" and all(
+        o.startswith("http://localhost") or o.startswith("http://127.0.0.1") for o in origins
+    ):
+        logger.warning(
+            "CORS_ORIGINS still points at localhost in production — set your Vercel URL on Render"
+        )
+    logger.info(
+        "Product Intelligence Copilot API ready (env=%s, cors_origins=%d)",
+        settings.app_env,
+        len(origins),
+    )
     yield
 
 
@@ -54,7 +65,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()] or ["*"],
+    allow_origins=settings.cors_origin_list(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

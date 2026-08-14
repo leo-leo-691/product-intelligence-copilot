@@ -77,7 +77,32 @@ export interface HealthInfo {
   env?: string;
 }
 
-const API = "";
+/** Backend base URL. Empty in local dev → Vite proxy handles /api and /health. */
+export const API_BASE = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+
+const API_KEY = import.meta.env.VITE_API_KEY ?? "";
+
+export function apiUrl(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE}${normalized}`;
+}
+
+function mergeHeaders(extra?: HeadersInit): Headers {
+  const headers = new Headers();
+  if (API_KEY) {
+    headers.set("X-API-Key", API_KEY);
+  }
+  if (extra) {
+    new Headers(extra).forEach((value, key) => headers.set(key, value));
+  }
+  return headers;
+}
+
+/** Fetch wrapper: applies API base URL and optional X-API-Key header. */
+export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const headers = mergeHeaders(init?.headers);
+  return fetch(apiUrl(path), { ...init, headers });
+}
 
 async function parseJson<T>(r: Response): Promise<T> {
   if (!r.ok) {
@@ -88,22 +113,22 @@ async function parseJson<T>(r: Response): Promise<T> {
 }
 
 export async function fetchHealth(): Promise<HealthInfo> {
-  const r = await fetch(`${API}/health`);
+  const r = await apiFetch("/health");
   return parseJson(r);
 }
 
 export async function fetchProducts(): Promise<ProductRecord[]> {
-  const r = await fetch(`${API}/api/products`);
+  const r = await apiFetch("/api/products");
   return parseJson(r);
 }
 
 export async function fetchProduct(id: string): Promise<ProductRecord> {
-  const r = await fetch(`${API}/api/products/${id}`);
+  const r = await apiFetch(`/api/products/${id}`);
   return parseJson(r);
 }
 
 export async function fetchDashboard(): Promise<DashboardStats> {
-  const r = await fetch(`${API}/api/dashboard`);
+  const r = await apiFetch("/api/dashboard");
   return parseJson(r);
 }
 
@@ -113,11 +138,16 @@ export async function ingestText(body: {
   text?: string;
   url?: string;
 }): Promise<ProductRecord> {
-  const r = await fetch(`${API}/api/ingest`, {
+  const r = await apiFetch("/api/ingest", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  return parseJson(r);
+}
+
+export async function ingestUpload(formData: FormData): Promise<ProductRecord> {
+  const r = await apiFetch("/api/ingest/upload", { method: "POST", body: formData });
   return parseJson(r);
 }
 
@@ -127,7 +157,7 @@ export async function reviewField(
   review_status: string,
   value?: unknown
 ): Promise<{ product: ProductRecord; propagation_suggestion?: PropagationSuggestion }> {
-  const r = await fetch(`${API}/api/products/${productId}/fields/${fieldName}`, {
+  const r = await apiFetch(`/api/products/${productId}/fields/${fieldName}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ review_status, value }),
@@ -140,7 +170,7 @@ export async function resolveConflict(
   fieldName: string,
   chosen_value: unknown
 ): Promise<ProductRecord> {
-  const r = await fetch(`${API}/api/products/${productId}/conflicts/${fieldName}/resolve`, {
+  const r = await apiFetch(`/api/products/${productId}/conflicts/${fieldName}/resolve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chosen_value }),
@@ -149,17 +179,17 @@ export async function resolveConflict(
 }
 
 export async function bulkApproveHigh(productId: string): Promise<ProductRecord> {
-  const r = await fetch(`${API}/api/products/${productId}/bulk-approve-high`, { method: "POST" });
+  const r = await apiFetch(`/api/products/${productId}/bulk-approve-high`, { method: "POST" });
   return parseJson(r);
 }
 
 export async function approveRecord(productId: string): Promise<ProductRecord> {
-  const r = await fetch(`${API}/api/products/${productId}/approve-record`, { method: "POST" });
+  const r = await apiFetch(`/api/products/${productId}/approve-record`, { method: "POST" });
   return parseJson(r);
 }
 
 export async function propagationAction(id: string, action: "apply" | "dismiss") {
-  const r = await fetch(`${API}/api/propagations/${id}`, {
+  const r = await apiFetch(`/api/propagations/${id}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action }),
@@ -168,25 +198,25 @@ export async function propagationAction(id: string, action: "apply" | "dismiss")
 }
 
 export async function fetchCategories() {
-  const r = await fetch(`${API}/api/categories`);
+  const r = await apiFetch("/api/categories");
   return parseJson(r);
 }
 
 export async function runDemoBatch(): Promise<{ id: string; product_ids: string[] }> {
-  const r = await fetch(`${API}/api/batch/from-manifest?reset=true`, { method: "POST" });
+  const r = await apiFetch("/api/batch/from-manifest?reset=true", { method: "POST" });
   return parseJson(r);
 }
 
 export async function fetchEvalMatchRate() {
-  const r = await fetch(`${API}/api/eval/match-rate`);
+  const r = await apiFetch("/api/eval/match-rate");
   return parseJson(r);
 }
 
 /** Trigger a browser file download from an API path. */
 export async function downloadExport(kind: "csv" | "json", approvedOnly = false): Promise<void> {
-  const r = await fetch(`${API}/api/export/${kind}?approved_only=${approvedOnly}`);
+  const r = await apiFetch(`/api/export/${kind}?approved_only=${approvedOnly}`);
   if (!r.ok) {
-    throw new Error(await r.text() || `Export failed (${r.status})`);
+    throw new Error((await r.text()) || `Export failed (${r.status})`);
   }
   const blob = await r.blob();
   const url = URL.createObjectURL(blob);

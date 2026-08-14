@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { fetchCategories, ingestText, runDemoBatch } from "../api";
+import { fetchCategories, ingestText, ingestUpload, runDemoBatch } from "../api";
 
 export default function UploadPage() {
   const nav = useNavigate();
@@ -38,9 +38,7 @@ export default function UploadPage() {
         if (url) fd.append("url", url);
         if (pdf) fd.append("pdf", pdf);
         if (image) fd.append("image", image);
-        const r = await fetch("/api/ingest/upload", { method: "POST", body: fd });
-        if (!r.ok) throw new Error(await r.text());
-        record = await r.json();
+        record = await ingestUpload(fd);
       } else {
         record = await ingestText({
           sku,
