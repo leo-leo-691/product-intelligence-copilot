@@ -39,6 +39,7 @@ The system **does not hallucinate missing required fields**. Gap-fill via Tavily
 | **Correction propagation** | Edit `body_material` WCB → WCC on one SKU; siblings in same template get suggestions |
 | **Offline demo** | Full pipeline works without API keys via labeled-text parser + seeded fixtures |
 | **Interchangeable LLMs** | Gemini 3.1 Flash-Lite (default) or Claude Sonnet 4 behind one abstraction |
+| **Optional dual validation** | `DUAL_LLM_ENABLED=true` runs Gemini and Claude independently; agreement is extra evidence, disagreement needs human review — not a correctness guarantee |
 | **Scale signal** | 26-sample batch dashboard with aggregates, match rate, and export |
 
 ---
@@ -87,9 +88,19 @@ The system **does not hallucinate missing required fields**. Gap-fill via Tavily
 **LLM abstraction** — business logic never instantiates provider SDKs directly:
 
 ```
-LLMService → get_llm_provider() → GeminiProvider | ClaudeProvider
+Normal (DUAL_LLM_ENABLED=false):
+  LLMService → get_llm_provider() → GeminiProvider | ClaudeProvider
                                          ↓
                               LLMExtractionResult → FieldProvenance
+
+Dual (DUAL_LLM_ENABLED=true):
+  DualLLMService → GeminiProvider + ClaudeProvider (same text/schema, independent)
+                         ↓
+              field-by-field compare (agreement / disagreement / field missing)
+                         ↓
+              labeled-text provenance kept; LLM never silently overwrites it
+                         ↓
+              existing validation → confidence → human review
 ```
 
 Tavily and SerpAPI remain a separate search layer for web gap-fill only.
@@ -115,7 +126,7 @@ Tavily and SerpAPI remain a separate search layer for web gap-fill only.
 
 ```bash
 git clone https://github.com/leo-leo-691/product-intelligence-copilot.git
-cd Unihack
+cd product-intelligence-copilot
 
 python -m venv .venv
 # Windows:  .venv\Scripts\activate
@@ -158,6 +169,11 @@ Edit `.env` (never commit this file):
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=<your-key>
 GEMINI_MODEL=gemini-3.1-flash-lite
+
+# Optional — second model for dual validation
+ANTHROPIC_API_KEY=<your-key>
+ANTHROPIC_MODEL=claude-sonnet-4-20250514
+DUAL_LLM_ENABLED=false
 
 # Optional — web gap-fill for missing required fields
 TAVILY_API_KEY=<your-key>
@@ -203,6 +219,7 @@ Full walkthrough: [`docs/DEMO.md`](docs/DEMO.md)
 | Capped same-host crawl | Configurable via `CRAWL_MAX_PAGES` |
 | API key auth | Optional `API_KEY` header for `/api/*` |
 | Interchangeable LLM providers | Gemini (default) or Anthropic via `LLM_PROVIDER` |
+| Dual LLM validation | Optional `DUAL_LLM_ENABLED`; compare Gemini + Claude; labeled text kept |
 
 ---
 
@@ -222,9 +239,11 @@ ANTHROPIC_MODEL=claude-sonnet-4-20250514
 DUAL_LLM_ENABLED=false
 ```
 
-- **Normal mode** (`DUAL_LLM_ENABLED=false`): only the selected `LLM_PROVIDER` runs (one LLM call).
-- **Dual validation mode** (`DUAL_LLM_ENABLED=true`): Gemini and Claude independently extract the same product from the same context. Outputs are compared field-by-field. Agreement is extra evidence for the application-computed confidence score; disagreement marks the field for human review and is **not** auto-resolved. Dual comparison does **not** guarantee correctness.
-- **No Gemini key:** falls back to labeled-text / offline demo extraction (judges can run without keys).
+- **Normal mode** (`DUAL_LLM_ENABLED=false`): only the selected `LLM_PROVIDER` runs (one LLM call). If labeled-text already fills ≥2 fields, the LLM stage is skipped (optimized demo path).
+- **Dual validation mode** (`DUAL_LLM_ENABLED=true`): Gemini and Claude independently extract the **same** product from the **same** context (two LLM calls). This still runs even when labeled-text already found fields. Labeled-text values and provenance are **kept**; models do not silently overwrite the document. Outputs are compared field-by-field. Agreement is extra evidence for the application-computed confidence score; disagreement marks the field for human review and is **not** auto-resolved. Dual comparison does **not** guarantee correctness.
+- **One provider unavailable** (missing credits, timeout, missing key): recorded as `provider_unavailable`. The successful extraction is kept. This is **not** treated as field disagreement and does **not** force review or cut confidence just because the other account failed.
+- **Genuine field omit:** if both providers succeed but one leaves a field empty, that is `MISSING_FROM_GEMINI` / `MISSING_FROM_CLAUDE` and can still require review.
+- **No Gemini key (single-provider):** falls back to labeled-text / offline demo extraction (judges can run without keys).
 - **Anthropic selected without key (single-provider):** clear configuration error (no silent fallback).
 - **Confidence:** always computed by the application — never taken from model self-scores.
 
@@ -258,11 +277,11 @@ Unihack/
 ├── backend/
 │   ├── app/
 │   │   ├── api/           # FastAPI routes
-│   │   ├── llm/           # Gemini + Claude provider abstraction
+│   │   ├── llm/           # Gemini + Claude + DualLLMService
 │   │   ├── models/        # ProductRecord, ProductInput
 │   │   ├── schemas/       # Category schemas + FieldProvenance
 │   │   └── services/      # Pipeline, ingest, extract, gap-fill, etc.
-│   └── tests/             # Provider unit tests (mocked APIs)
+│   └── tests/             # Provider + dual-LLM unit tests (mocked APIs)
 ├── frontend/
 │   └── src/
 │       ├── pages/         # Upload, Review, Dashboard
@@ -289,7 +308,7 @@ Unihack/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/health` | Service status, LLM provider, search config |
+| `GET` | `/health` | Status, LLM provider, dual-LLM flag, search config |
 | `GET` | `/api/categories` | List category schemas |
 | `POST` | `/api/ingest` | Ingest from JSON body (text, URL, metadata) |
 | `POST` | `/api/ingest/upload` | Upload PDF / image / text file |
@@ -318,7 +337,9 @@ Copy [`.env.example`](.env.example) to `.env` locally. **Never commit `.env`.**
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `LLM_PROVIDER` | `gemini` or `anthropic` | `gemini` |
-| `DUAL_LLM_ENABLED` | Compare Gemini + Claude independently | `false` |
+| `DUAL_LLM_ENABLED` | `true` = Gemini + Claude independently on the same product | `false` |
+| `CORS_ORIGINS` | Allowed frontend origins (comma-separated) | localhost Vite ports |
+| `VITE_API_URL` | Frontend production API base (Vercel) | *(empty = Vite proxy in dev)* |
 | `GEMINI_API_KEY` | Google Gemini API key | *(empty)* |
 | `GEMINI_MODEL` | Gemini model ID | `gemini-3.1-flash-lite` |
 | `ANTHROPIC_API_KEY` | Anthropic API key | *(empty)* |
@@ -343,8 +364,8 @@ python scripts/smoke_test.py
 # Load 26-sample demo batch
 python scripts/run_batch.py
 
-# LLM provider unit tests (mocked — no real API calls)
-python -m pytest backend/tests/test_llm_providers.py -v
+# LLM provider + dual-LLM tests (mocked — no real API calls)
+python -m pytest backend/tests/test_llm_providers.py backend/tests/test_dual_llm.py -v
 
 # Frontend production build
 cd frontend && npm run build
@@ -365,8 +386,6 @@ Smoke tests cover: clean extraction, conflict detection, sparse no-hallucination
 ---
 
 ## Team
-
-<!-- Update with your team details before submission -->
 
 | Name                  |
 |-----------------------|

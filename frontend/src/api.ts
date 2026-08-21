@@ -46,6 +46,14 @@ export interface DualLLMMeta {
   comparisons: DualLLMFieldComparison[];
 }
 
+export interface EvalMatchRate {
+  fields_compared?: number;
+  match_rate?: number;
+  high_band_matches?: number;
+  exact_matches?: number;
+  error?: string;
+}
+
 export interface DashboardStats {
   total_products: number;
   total_fields: number;
@@ -228,7 +236,7 @@ export async function runDemoBatch(): Promise<{ id: string; product_ids: string[
   return parseJson(r);
 }
 
-export async function fetchEvalMatchRate() {
+export async function fetchEvalMatchRate(): Promise<EvalMatchRate> {
   const r = await apiFetch("/api/eval/match-rate");
   return parseJson(r);
 }

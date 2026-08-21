@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   DashboardStats,
   downloadExport,
+  EvalMatchRate,
   fetchDashboard,
   fetchEvalMatchRate,
   fetchProducts,
@@ -13,12 +14,7 @@ import RoutingTag from "../components/RoutingTag";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [evalInfo, setEvalInfo] = useState<{
-    fields_compared?: number;
-    match_rate?: number;
-    high_band_matches?: number;
-    exact_matches?: number;
-  } | null>(null);
+  const [evalInfo, setEvalInfo] = useState<EvalMatchRate | null>(null);
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [error, setError] = useState("");
   const [loadingBatch, setLoadingBatch] = useState(false);
