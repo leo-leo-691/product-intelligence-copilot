@@ -210,6 +210,36 @@ export default function ReviewPage() {
           </section>
         )}
 
+        {record.dual_llm?.enabled && (
+          <section className="border border-rule-line bg-paper p-4">
+            <h2 className="font-display text-sm uppercase tracking-stencil text-ink">
+              Dual LLM ({record.dual_llm.gemini_status} / {record.dual_llm.claude_status})
+            </h2>
+            <ul className="mt-2 space-y-1 font-mono text-xs text-ink">
+              {record.dual_llm.comparisons.filter((row) => row.status === "AGREEMENT").length > 0 && (
+                <li>
+                  Gemini + Claude Agreement:{" "}
+                  {record.dual_llm.comparisons.filter((row) => row.status === "AGREEMENT").length} field(s)
+                </li>
+              )}
+              {(record.dual_llm.gemini_status === "provider_unavailable" ||
+                record.dual_llm.claude_status === "provider_unavailable") && (
+                <li>
+                  Provider unavailable — using the successful extraction; not treated as field disagreement
+                </li>
+              )}
+              {record.dual_llm.comparisons
+                .filter((row) => row.status === "DISAGREEMENT")
+                .map((row) => (
+                  <li key={row.field_name}>
+                    LLM Disagreement · {row.field_name}: Gemini {String(row.gemini_value)} · Claude{" "}
+                    {String(row.claude_value)} → human review required
+                  </li>
+                ))}
+            </ul>
+          </section>
+        )}
+
         {record.conflicts.filter((c) => !c.resolved).length > 0 && (
           <section className="border border-stamp-flagged bg-paper p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-3">
@@ -239,6 +269,7 @@ export default function ReviewPage() {
                           <p className="font-mono text-lg font-semibold text-ink">{String(x.value)}</p>
                           <p className="mt-2 inline-block border border-dashed border-rule-line bg-paper px-2 py-1 font-mono text-[10px] uppercase tracking-label text-ink-soft">
                             Source · {x.source_type}
+                            {x.provider ? ` · ${x.provider}` : ""}
                           </p>
                           <p className="mt-2 font-mono text-xs text-ink-soft">{x.extraction_method}</p>
                           <p className="mt-1 font-mono text-xs text-ink-soft">{x.source_snippet}</p>

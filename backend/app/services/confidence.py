@@ -24,6 +24,7 @@ def compute_confidence(
     validation_failed: bool,
     format_match: float,
     not_found: bool,
+    llm_agreement: float | None = None,
 ) -> tuple[float, str, dict[str, float]]:
     method = METHOD_RELIABILITY.get(extraction_method, 0.5)
 
@@ -41,6 +42,12 @@ def compute_confidence(
     raw = 0.35 * method + 0.25 * agreement + 0.25 * validation_score + 0.15 * format_match
     if validation_failed:
         raw = min(raw, 0.44)
+    # Optional dual-LLM signal: does not replace the four-factor formula.
+    if llm_agreement is not None:
+        if llm_agreement <= 0.0:
+            raw = min(raw, 0.44)
+        elif llm_agreement >= 1.0:
+            raw = min(1.0, raw + 0.05)
 
     band = compute_band(raw, validation_failed, not_found)
     reasoning = {
@@ -50,4 +57,6 @@ def compute_confidence(
         "format_match": round(format_match, 3),
         "raw": round(raw, 3),
     }
+    if llm_agreement is not None:
+        reasoning["llm_agreement"] = round(llm_agreement, 3)
     return raw, band, reasoning

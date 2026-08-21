@@ -1,10 +1,17 @@
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
+from backend.app.config import settings
 from backend.app.llm import get_llm_service
+from backend.app.llm.compare import values_equivalent
+from backend.app.llm.dual import merge_conflicts
 from backend.app.schemas.categories import CategorySchema
 from backend.app.schemas.fields import (
+    ConflictCandidate,
+    DualLLMMeta,
     ExtractionMethod,
+    FieldConflict,
     FieldProvenance,
     SourceType,
 )
@@ -66,6 +73,13 @@ FIELD_KEYWORDS: dict[str, dict[str, list[str]]] = {
         "head_style": ["head", "hex"],
     },
 }
+
+
+@dataclass
+class ExtractionBundle:
+    fields: dict[str, FieldProvenance]
+    dual_llm: DualLLMMeta | None = None
+    llm_conflicts: list[FieldConflict] | None = None
 
 
 def _parse_labeled_text(text: str, schema: CategorySchema) -> dict[str, FieldProvenance]:
@@ -175,27 +189,134 @@ def _mock_from_sku(sku: str, schema: CategorySchema) -> dict[str, FieldProvenanc
 
 def extract_with_llm(text: str, schema: CategorySchema, sku: str) -> dict[str, FieldProvenance] | None:
     """Extract via configured LLM provider (Gemini or Claude). Never invents values."""
+    bundle = extract_with_llm_bundle(text, schema, sku)
+    if bundle is None or not bundle.fields:
+        return None
+    return bundle.fields
+
+
+def extract_with_llm_bundle(text: str, schema: CategorySchema, sku: str) -> ExtractionBundle | None:
+    """LLM extraction; dual mode runs Gemini and Claude independently."""
     context = retrieve_relevant_chunks(
         text,
         [f.name for f in schema.fields],
         FIELD_KEYWORDS.get(schema.category_id, {}),
     )
-    return get_llm_service().extract_fields_from_text(context, schema, sku)
+    if settings.dual_llm_enabled:
+        from backend.app.llm.dual import DualLLMService
+
+        outcome = DualLLMService().extract_fields_from_text(context, schema, sku)
+        if outcome.fields is None:
+            return ExtractionBundle(fields={}, dual_llm=outcome.meta, llm_conflicts=outcome.llm_conflicts)
+        return ExtractionBundle(
+            fields=outcome.fields,
+            dual_llm=outcome.meta,
+            llm_conflicts=outcome.llm_conflicts,
+        )
+    fields = get_llm_service().extract_fields_from_text(context, schema, sku)
+    if fields is None:
+        return None
+    return ExtractionBundle(fields=fields)
 
 
 def extract_fields(text: str, schema: CategorySchema, sku: str) -> dict[str, FieldProvenance]:
+    return extract_bundle(text, schema, sku).fields
+
+
+def _merge_labeled_and_dual(
+    parsed: dict[str, FieldProvenance],
+    llm: ExtractionBundle | None,
+) -> ExtractionBundle:
+    """Keep labeled-text provenance; attach dual-LLM evidence without overwriting."""
+    dual_fields = (llm.fields if llm else None) or {}
+    comparisons = {
+        row.field_name: row
+        for row in ((llm.dual_llm.comparisons if llm and llm.dual_llm else []) or [])
+    }
+    conflicts = merge_conflicts([], list(llm.llm_conflicts or []) if llm else [])
+    merged: dict[str, FieldProvenance] = {}
+    for name, labeled in parsed.items():
+        if labeled.not_found:
+            merged[name] = dual_fields.get(name, labeled)
+            continue
+        merged[name] = labeled
+        row = comparisons.get(name)
+        if not row:
+            continue
+        extra: list[ConflictCandidate] = []
+        if row.gemini_value is not None and not values_equivalent(labeled.value, row.gemini_value):
+            extra.append(
+                ConflictCandidate(
+                    value=row.gemini_value,
+                    source_type=SourceType.DOCUMENT,
+                    source_snippet=row.gemini_source_snippet,
+                    source_location=row.gemini_source_location,
+                    extraction_method=ExtractionMethod.TEXT_LLM,
+                    provider="gemini",
+                )
+            )
+        if row.claude_value is not None and not values_equivalent(labeled.value, row.claude_value):
+            extra.append(
+                ConflictCandidate(
+                    value=row.claude_value,
+                    source_type=SourceType.DOCUMENT,
+                    source_snippet=row.claude_source_snippet,
+                    source_location=row.claude_source_location,
+                    extraction_method=ExtractionMethod.TEXT_LLM,
+                    provider="anthropic",
+                )
+            )
+        if extra:
+            merged[name] = labeled.model_copy(update={"needs_review": True})
+            doc_candidate = ConflictCandidate(
+                value=labeled.value,
+                source_type=labeled.source_type or SourceType.DOCUMENT,
+                source_snippet=labeled.source_snippet,
+                source_location=labeled.source_location,
+                extraction_method=labeled.extraction_method,
+            )
+            conflicts = merge_conflicts(
+                conflicts,
+                [FieldConflict(field_name=name, kind="source", candidates=[doc_candidate, *extra])],
+            )
+    return ExtractionBundle(
+        fields=merged,
+        dual_llm=llm.dual_llm if llm else None,
+        llm_conflicts=conflicts,
+    )
+
+
+def extract_bundle(text: str, schema: CategorySchema, sku: str) -> ExtractionBundle:
+    parsed: dict[str, FieldProvenance] = {}
+    labeled_hits = 0
     if text.strip():
         parsed = _parse_labeled_text(text, schema)
-        if sum(1 for v in parsed.values() if not v.not_found) >= 2:
-            return parsed
-    llm = extract_with_llm(text, schema, sku)
-    if llm:
+        labeled_hits = sum(1 for v in parsed.values() if not v.not_found)
+
+    if not settings.dual_llm_enabled:
+        if labeled_hits >= 2:
+            return ExtractionBundle(fields=parsed)
+        llm = extract_with_llm_bundle(text, schema, sku)
+        if llm and llm.fields:
+            return llm
+        if labeled_hits:
+            return ExtractionBundle(fields=parsed, dual_llm=llm.dual_llm if llm else None)
+        return ExtractionBundle(
+            fields=_mock_from_sku(sku, schema),
+            dual_llm=llm.dual_llm if llm else None,
+            llm_conflicts=llm.llm_conflicts if llm else None,
+        )
+
+    llm = extract_with_llm_bundle(text, schema, sku)
+    if parsed:
+        return _merge_labeled_and_dual(parsed, llm)
+    if llm and llm.fields:
         return llm
-    if text.strip():
-        parsed = _parse_labeled_text(text, schema)
-        if any(not v.not_found for v in parsed.values()):
-            return parsed
-    return _mock_from_sku(sku, schema)
+    return ExtractionBundle(
+        fields=_mock_from_sku(sku, schema),
+        dual_llm=llm.dual_llm if llm else None,
+        llm_conflicts=llm.llm_conflicts if llm else None,
+    )
 
 
 def load_seed_text(root: Path, relative: str) -> str:

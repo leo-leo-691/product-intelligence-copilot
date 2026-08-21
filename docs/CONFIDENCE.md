@@ -36,3 +36,5 @@ If validation fails, `raw` is capped at `0.44` (cannot be High).
 - Single source → `0.5`
 
 Reasoning components are stored per field as `confidence_reasoning` and shown in the Review UI.
+
+When `DUAL_LLM_ENABLED=true`, an extra `llm_agreement` component is recorded. Agreement adds a small bonus (`+0.05`) after the four-factor formula; disagreement caps `raw` at `0.44` (cannot be High) and forces human review. This does not replace the formula above.

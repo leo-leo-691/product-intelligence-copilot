@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.1-flash-lite"
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-4-20250514"
+    dual_llm_enabled: bool = False
     tavily_api_key: str | None = None
     serpapi_api_key: str | None = None
 

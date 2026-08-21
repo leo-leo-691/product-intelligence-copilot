@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from backend.app.schemas.fields import FieldConflict, FieldProvenance
+from backend.app.schemas.fields import DualLLMMeta, FieldConflict, FieldProvenance
 
 
 def utc_now() -> str:
@@ -39,6 +39,7 @@ class ProductRecord(BaseModel):
     language: dict[str, Any] | None = None
     outliers: list[dict[str, Any]] = Field(default_factory=list)
     kg: dict[str, Any] | None = None
+    dual_llm: DualLLMMeta | None = None
 
 
 class BatchRun(BaseModel):

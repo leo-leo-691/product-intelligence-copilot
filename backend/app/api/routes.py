@@ -103,6 +103,7 @@ def health():
         "web_search_configured": bool(settings.tavily_api_key or settings.serpapi_api_key),
         "api_auth_required": bool(settings.api_key),
         "kg_enabled": settings.kg_enabled,
+        "dual_llm_enabled": bool(settings.dual_llm_enabled),
         "env": settings.app_env,
     }
 

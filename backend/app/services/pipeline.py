@@ -6,7 +6,7 @@ from backend.app.services.category_infer import infer_category
 from backend.app.services.confidence import compute_confidence
 from backend.app.services.conflicts import detect_conflicts
 from backend.app.services.crawl import capped_crawl
-from backend.app.services.extraction import extract_fields
+from backend.app.services.extraction import extract_bundle
 from backend.app.services.gap_fill import collect_web_alternates, gap_fill_missing
 from backend.app.services.ingestion import guess_source_template, ingest_product_input
 from backend.app.services.knowledge_graph import upsert_product_graph
@@ -15,13 +15,16 @@ from backend.app.services.outliers import detect_outliers
 from backend.app.services.storage import list_products
 from backend.app.services.validation import validate_field, validate_record
 from backend.app.services.vision import extract_from_images
+from backend.app.llm.dual import llm_agreement_scores, merge_conflicts
 
 
 def _apply_confidence(
     schema,
     fields: dict[str, FieldProvenance],
     web_alts: dict[str, list[FieldProvenance]],
+    llm_agreement_by_field: dict[str, float] | None = None,
 ):
+    llm_agreement_by_field = llm_agreement_by_field or {}
     for fdef in schema.fields:
         fp = fields.get(fdef.name, FieldProvenance(not_found=True))
         fp, fmt, val_failed = validate_field(fdef, fp)
@@ -31,6 +34,7 @@ def _apply_confidence(
         for alt in web_alts.get(fdef.name, []):
             if alt.source_type and alt.value is not None:
                 values_by_source[alt.source_type.value] = str(alt.value)
+        llm_ag = llm_agreement_by_field.get(fdef.name)
         raw, band, reasoning = compute_confidence(
             fp.extraction_method.value,
             list(values_by_source.keys()),
@@ -38,11 +42,14 @@ def _apply_confidence(
             val_failed,
             fmt,
             fp.not_found,
+            llm_agreement=llm_ag,
         )
         fp.confidence_raw = raw
         fp.confidence_score = ConfidenceBand(band)
         fp.confidence_reasoning = reasoning
-        if band == "High" and not val_failed and not fp.not_found:
+        if llm_ag is not None and llm_ag <= 0.0:
+            fp.needs_review = True
+        elif band == "High" and not val_failed and not fp.not_found:
             fp.needs_review = False
         else:
             fp.needs_review = True
@@ -78,7 +85,8 @@ async def run_pipeline(inp: ProductInput, batch_id: str | None = None) -> Produc
     schema = CATEGORIES[category_id]
     template = inp.source_template_id or guess_source_template(work_text)
 
-    fields = extract_fields(work_text, schema, inp.sku)
+    bundle = extract_bundle(work_text, schema, inp.sku)
+    fields = bundle.fields
 
     if parsed.images:
         fields = extract_from_images(parsed.images, schema, fields, inp.sku)
@@ -86,9 +94,11 @@ async def run_pipeline(inp: ProductInput, batch_id: str | None = None) -> Produc
     fields = await gap_fill_missing(inp.sku, schema, fields, inp.seed_web_overrides)
     web_alts = collect_web_alternates(inp.sku, fields, inp.seed_web_overrides)
 
-    fields = _apply_confidence(schema, fields, web_alts)
+    fields = _apply_confidence(schema, fields, web_alts, llm_agreement_scores(bundle.dual_llm))
     fields = validate_record(schema, fields)
     conflicts = detect_conflicts(fields, web_alts)
+    if bundle.llm_conflicts:
+        conflicts = merge_conflicts(conflicts, bundle.llm_conflicts)
 
     peers = [p for p in list_products() if p.category_id == category_id]
     outliers = detect_outliers(category_id, fields, peers, inp.sku)
@@ -103,6 +113,7 @@ async def run_pipeline(inp: ProductInput, batch_id: str | None = None) -> Produc
         category_inference=inference_meta,
         language=lang_meta,
         outliers=outliers,
+        dual_llm=bundle.dual_llm,
     )
 
     if settings.kg_enabled:

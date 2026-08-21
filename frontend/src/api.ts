@@ -23,8 +23,27 @@ export interface FieldConflict {
     source_snippet?: string;
     source_location?: string;
     extraction_method: string;
+    provider?: string;
   }[];
   resolved: boolean;
+  kind?: string;
+}
+
+export interface DualLLMFieldComparison {
+  field_name: string;
+  gemini_value?: unknown;
+  claude_value?: unknown;
+  status: string;
+  requires_review: boolean;
+}
+
+export interface DualLLMMeta {
+  enabled: boolean;
+  gemini_status: string;
+  claude_status: string;
+  gemini_model?: string | null;
+  claude_model?: string | null;
+  comparisons: DualLLMFieldComparison[];
 }
 
 export interface DashboardStats {
@@ -55,6 +74,7 @@ export interface ProductRecord {
   language?: Record<string, unknown>;
   outliers?: { field_name: string; message: string; value?: unknown }[];
   kg?: Record<string, unknown>;
+  dual_llm?: DualLLMMeta | null;
 }
 
 export interface PropagationSuggestion {
@@ -74,6 +94,7 @@ export interface HealthInfo {
   llm_configured?: boolean;
   anthropic_configured: boolean;
   web_search_configured: boolean;
+  dual_llm_enabled?: boolean;
   env?: string;
 }
 

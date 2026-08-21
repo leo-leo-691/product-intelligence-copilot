@@ -219,10 +219,13 @@ GEMINI_API_KEY=
 GEMINI_MODEL=gemini-3.1-flash-lite
 ANTHROPIC_API_KEY=
 ANTHROPIC_MODEL=claude-sonnet-4-20250514
+DUAL_LLM_ENABLED=false
 ```
 
+- **Normal mode** (`DUAL_LLM_ENABLED=false`): only the selected `LLM_PROVIDER` runs (one LLM call).
+- **Dual validation mode** (`DUAL_LLM_ENABLED=true`): Gemini and Claude independently extract the same product from the same context. Outputs are compared field-by-field. Agreement is extra evidence for the application-computed confidence score; disagreement marks the field for human review and is **not** auto-resolved. Dual comparison does **not** guarantee correctness.
 - **No Gemini key:** falls back to labeled-text / offline demo extraction (judges can run without keys).
-- **Anthropic selected without key:** clear configuration error (no silent fallback).
+- **Anthropic selected without key (single-provider):** clear configuration error (no silent fallback).
 - **Confidence:** always computed by the application — never taken from model self-scores.
 
 ---
@@ -315,6 +318,7 @@ Copy [`.env.example`](.env.example) to `.env` locally. **Never commit `.env`.**
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `LLM_PROVIDER` | `gemini` or `anthropic` | `gemini` |
+| `DUAL_LLM_ENABLED` | Compare Gemini + Claude independently | `false` |
 | `GEMINI_API_KEY` | Google Gemini API key | *(empty)* |
 | `GEMINI_MODEL` | Gemini model ID | `gemini-3.1-flash-lite` |
 | `ANTHROPIC_API_KEY` | Anthropic API key | *(empty)* |
@@ -364,13 +368,14 @@ Smoke tests cover: clean extraction, conflict detection, sparse no-hallucination
 
 <!-- Update with your team details before submission -->
 
-| Name | Role |
-|------|------|
-| *Your name* | *Role* |
-| *Teammate* | *Role* |
+| Name                  |
+|-----------------------|
+| *Arindanm Gogoi*      |
+| *Vishwajeet Sonowane* |
+| *Vipul Gujar*         |
 
 **Event:** Unihack 2026  
-**Repository:** `<your-github-repo-url>`
+**Repository:** `https://github.com/leo-leo-691/product-intelligence-copilot.git`
 
 ---
 
