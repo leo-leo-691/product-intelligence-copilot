@@ -66,8 +66,7 @@ export default function DashboardPage() {
           </p>
           <h1 className="page-title mt-1">Batch dashboard</h1>
           <p className="mt-2 max-w-xl font-sans text-sm text-ink-soft">
-            Aggregates from stored pipeline runs. Pre-run via Ingest → demo batch or{" "}
-            <code className="font-mono text-xs text-ink">scripts/run_batch.py</code>.
+            Aggregates results from completed pipeline runs. Start with the 20-product demo batch from Ingest, or run the batch script locally.
           </p>
         </div>
         <button
