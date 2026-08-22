@@ -81,7 +81,7 @@ export default function UploadPage() {
           </p>
         </div>
         <button type="button" onClick={onDemoBatch} disabled={batchLoading} className="btn-secondary">
-          {batchLoading ? "Running demo batch…" : "Load 20-product demo batch"}
+          {batchLoading ? "Running demo batch…" : "Load 26-product demo batch"}
         </button>
       </div>
 

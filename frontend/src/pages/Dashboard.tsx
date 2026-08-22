@@ -66,7 +66,7 @@ export default function DashboardPage() {
           </p>
           <h1 className="page-title mt-1">Batch dashboard</h1>
           <p className="mt-2 max-w-xl font-sans text-sm text-ink-soft">
-            Aggregates results from completed pipeline runs. Start with the 20-product demo batch from Ingest, or run the batch script locally.
+            Aggregates results from completed pipeline runs. Start with the 26-product demo batch from Ingest, or run the batch script locally.
           </p>
         </div>
         <button
@@ -95,6 +95,9 @@ export default function DashboardPage() {
       {!stats || stats.total_products === 0 ? (
         <div className="panel border-dashed p-8 text-center">
           <p className="font-sans text-ink-soft">No batch data yet.</p>
+          <p className="mt-2 font-sans text-sm text-ink-soft">
+            Run the 26-product demo batch from Ingest to populate this dashboard.
+          </p>
           <Link to="/upload" className="btn-primary mt-4 inline-flex">
             Load demo batch
           </Link>
@@ -118,11 +121,18 @@ export default function DashboardPage() {
             <p className="font-mono text-xs text-ink-soft">
               Approved fields: {stats.fields_approved} · Pending review: {stats.fields_pending}
             </p>
+            <p className="mt-2 max-w-2xl font-sans text-xs text-ink-soft">
+              Confidence % is evidence and validation strength for extracted fields — not labeled
+              accuracy.
+            </p>
             {evalInfo && evalInfo.fields_compared ? (
-              <p className="mt-2 font-mono text-xs text-ink-soft">
+              <p className="mt-1 font-mono text-xs text-ink-soft">
                 Gold-label eval: {evalInfo.exact_matches ?? 0}/{evalInfo.fields_compared} exact (
                 {Math.round((evalInfo.match_rate || 0) * 100)}%) · High-band matches:{" "}
                 {evalInfo.high_band_matches ?? 0}
+                <span className="mt-1 block font-sans">
+                  Exact-match benchmark on the labeled subset; separate from High confidence %.
+                </span>
               </p>
             ) : null}
             <div className="mt-5 flex flex-wrap gap-3">

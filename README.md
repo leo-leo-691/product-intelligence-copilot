@@ -10,6 +10,14 @@
 
 ---
 
+## 🚀 Live Demo
+
+**Frontend:** https://product-intelligence-copilot.vercel.app
+
+**Backend API:** https://product-intelligence-copilot-api.onrender.com
+
+**Health:** https://product-intelligence-copilot-api.onrender.com/health
+
 ## The problem
 
 Industrial distributors and manufacturers still rely on manual transcription from PDF datasheets, scanned spec sheets, and supplier portals. Generic LLM prompts return JSON with no provenance, no confidence layer, and a tendency to **invent** missing values. Catalog teams cannot trust or audit those outputs at scale.
@@ -145,7 +153,7 @@ cd frontend && npm install && npm run dev
 
 Open **http://localhost:5173** → go to **Review** or **Dashboard**.
 
-Click **Load 20-product demo batch** in the UI, or use the pre-seeded batch from `run_batch.py`.
+Click **Load 26-product demo batch** in the UI, or use the pre-seeded batch from `run_batch.py`.
 
 ### Option B: Docker
 
@@ -259,6 +267,18 @@ raw = 0.35 × method_reliability
     + 0.25 × validation_score
     + 0.15 × format_match
 ```
+
+### Confidence vs human review
+
+These states represent different concepts:
+
+- **HIGH / MEDIUM / LOW** — application-computed confidence based on evidence, validation, extraction method, and format.
+- **FLAGGED** — a conflict, missing/uncertain evidence, or other condition requiring attention.
+- **APPROVED** — a human reviewer explicitly approved the record/field.
+- **REJECTED** — a human reviewer rejected it.
+- **EDITED** — a human reviewer changed the extracted value.
+
+A High-confidence field is **not automatically human-approved**. Confidence and review status are tracked independently.
 
 | Band | Rule |
 |------|------|
@@ -389,12 +409,12 @@ Smoke tests cover: clean extraction, conflict detection, sparse no-hallucination
 
 | Name                  |
 |-----------------------|
-| *Arindanm Gogoi*      |
+| *Arindam Gogoi*       |
 | *Vishwajeet Sonowane* |
 | *Vipul Gujar*         |
 
 **Event:** Unihack 2026  
-**Repository:** `https://github.com/leo-leo-691/product-intelligence-copilot.git`
+**Repository:** [GitHub](https://github.com/leo-leo-691/product-intelligence-copilot)
 
 ---
 

@@ -226,7 +226,7 @@ export async function propagationAction(id: string, action: "apply" | "dismiss")
   return parseJson(r);
 }
 
-export async function fetchCategories() {
+export async function fetchCategories(): Promise<{ id: string; name: string }[]> {
   const r = await apiFetch("/api/categories");
   return parseJson(r);
 }

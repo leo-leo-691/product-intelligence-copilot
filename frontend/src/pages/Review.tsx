@@ -53,7 +53,7 @@ export default function ReviewPage() {
       <div className="panel p-8 text-center">
         <p className="font-display text-lg uppercase tracking-stencil text-ink">No products yet</p>
         <p className="mt-2 font-sans text-sm text-ink-soft">
-          Load the demo batch from Ingest, or upload a datasheet.
+          Load the 26-product demo batch from Ingest, or upload a datasheet.
         </p>
         <Link to="/upload" className="btn-primary mt-5 inline-flex">
           Go to Ingest
@@ -167,7 +167,14 @@ export default function ReviewPage() {
               {" · template "}
               <span className="font-mono">{record.source_template_id ?? "—"}</span>
               {" · status "}
-              <span className="font-mono uppercase text-stamp-approved">{record.status}</span>
+              <span
+                className={[
+                  "font-mono uppercase",
+                  record.status === "approved" ? "text-stamp-approved" : "text-stamp-review",
+                ].join(" ")}
+              >
+                {record.status.replace(/_/g, " ")}
+              </span>
             </p>
             {record.category_inference && (
               <p className="mt-1 font-mono text-[11px] text-ink-soft">
@@ -186,11 +193,11 @@ export default function ReviewPage() {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={onBulk} disabled={busy} className="btn-primary">
+            <button onClick={onBulk} disabled={busy || record.status === "approved"} className="btn-primary">
               Bulk-approve High
             </button>
-            <button onClick={onApproveAll} disabled={busy} className="btn-secondary">
-              Approve record
+            <button onClick={onApproveAll} disabled={busy || record.status === "approved"} className="btn-secondary">
+              {record.status === "approved" ? "Record approved" : "Approve record"}
             </button>
           </div>
         </div>
@@ -248,7 +255,13 @@ export default function ReviewPage() {
                 Conflicts — not auto-resolved
               </h2>
               <span className="font-mono text-[10px] uppercase tracking-label text-stamp-flagged">Unresolved</span>
+              <span className="font-mono text-[10px] uppercase tracking-label text-stamp-flagged">
+                Human review
+              </span>
             </div>
+            <p className="mt-2 font-mono text-xs text-stamp-flagged">
+              Both source values are shown. Neither is auto-selected.
+            </p>
             {record.conflicts
               .filter((c) => !c.resolved)
               .map((c) => (
@@ -266,10 +279,13 @@ export default function ReviewPage() {
                             i === 1 ? "sm:border-l-0" : "sm:border-r-0",
                           ].join(" ")}
                         >
-                          <p className="font-mono text-lg font-semibold text-ink">{String(x.value)}</p>
-                          <p className="mt-2 inline-block border border-dashed border-rule-line bg-paper px-2 py-1 font-mono text-[10px] uppercase tracking-label text-ink-soft">
-                            Source · {x.source_type}
+                          <p className="font-display text-[10px] uppercase tracking-stencil text-stamp-flagged">
+                            {x.source_type}
                             {x.provider ? ` · ${x.provider}` : ""}
+                          </p>
+                          <p className="mt-1 font-mono text-lg font-semibold text-ink">{String(x.value)}</p>
+                          <p className="mt-2 inline-block border border-dashed border-rule-line bg-paper px-2 py-1 font-mono text-[10px] uppercase tracking-label text-ink-soft">
+                            Provenance · {x.source_type}
                           </p>
                           <p className="mt-2 font-mono text-xs text-ink-soft">{x.extraction_method}</p>
                           <p className="mt-1 font-mono text-xs text-ink-soft">{x.source_snippet}</p>
@@ -319,14 +335,17 @@ export default function ReviewPage() {
                     )}
                   </p>
                   <p className="mt-1 font-mono text-[10px] uppercase tracking-label text-ink-soft">
-                    review: {fp.review_status}
-                    {fp.needs_review ? " · needs review" : ""}
+                    Review: {fp.review_status}
+                    {fp.needs_review && fp.review_status === "pending" ? " · needs review" : ""}
+                    {" · confidence: "}
+                    {fp.confidence_score}
                   </p>
                 </div>
                 <ConfidenceStamp
                   band={fp.confidence_score}
                   notFound={fp.not_found}
-                  needsReview={fp.needs_review}
+                  conflicted={conflictFields.has(name)}
+                  reviewStatus={fp.review_status}
                   title={JSON.stringify(fp.confidence_reasoning)}
                 />
               </div>
@@ -357,11 +376,19 @@ export default function ReviewPage() {
               )}
 
               <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-dashed border-rule-line pt-3">
-                <button className="btn-ghost" disabled={busy} onClick={() => onApprove(name)}>
-                  Approve
+                <button
+                  className="btn-ghost"
+                  disabled={busy || fp.review_status === "approved"}
+                  onClick={() => onApprove(name)}
+                >
+                  {fp.review_status === "approved" ? "Approved" : "Approve"}
                 </button>
-                <button className="btn-ghost" disabled={busy} onClick={() => onReject(name)}>
-                  Reject
+                <button
+                  className="btn-ghost"
+                  disabled={busy || fp.review_status === "rejected"}
+                  onClick={() => onReject(name)}
+                >
+                  {fp.review_status === "rejected" ? "Rejected" : "Reject"}
                 </button>
                 <label className="flex flex-col">
                   <span className="form-label mb-0.5">Edit value</span>

@@ -8,7 +8,7 @@ python scripts/run_batch.py
 # API + UI running
 ```
 
-Or click **Load 20-product demo batch** in the UI.
+Or click **Load 26-product demo batch** in the UI.
 
 1. **Problem (10s)** — Industrial catalogs still depend on manual transcription from PDFs; generic LLM JSON has no provenance or trust layer.
 2. **Clean ingest (60s)** — Open Review on `VALVE-A-001`. Show confidence badges; expand citation + confidence reasoning hover/JSON.
