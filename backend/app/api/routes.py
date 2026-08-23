@@ -3,6 +3,7 @@ import io
 import json
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -63,10 +64,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+cors_origins = settings.cors_origin_list()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origin_list(),
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials="*" not in cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -76,7 +78,7 @@ app.add_middleware(ApiKeyMiddleware)
 @app.exception_handler(Exception)
 async def unhandled_exception(request: Request, exc: Exception):
     if isinstance(exc, HTTPException):
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=getattr(exc, "headers", None))
     logger.exception("Unhandled error on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
@@ -93,8 +95,9 @@ def health():
 
     provider = get_llm_provider()
     llm_configured = provider.is_configured()
+    storage_ok = UPLOAD_DIR.exists()
     return {
-        "status": "ok",
+        "status": "ok" if storage_ok else "degraded",
         "version": "1.2.0",
         "llm_provider": provider.name,
         "llm_configured": llm_configured,
@@ -104,6 +107,7 @@ def health():
         "api_auth_required": bool(settings.api_key),
         "kg_enabled": settings.kg_enabled,
         "dual_llm_enabled": bool(settings.dual_llm_enabled),
+        "storage_ready": storage_ok,
         "env": settings.app_env,
     }
 
@@ -127,17 +131,31 @@ class IngestBody(BaseModel):
     title: str | None = None
 
 
+ALLOWED_EXTENSIONS = {
+    "pdf": {".pdf"},
+    "images": {".png", ".jpg", ".jpeg", ".webp", ".gif"},
+}
+
+
 async def _save_upload(sku: str, upload: UploadFile, subdir: str) -> str:
     if not upload.filename:
         raise HTTPException(400, "Empty filename")
+    raw_filename = Path(upload.filename).name
+    safe_sku = "".join(c for c in sku if c.isalnum() or c in "._-") or "sku"
+    safe_name = "".join(c for c in raw_filename if c.isalnum() or c in "._-") or "upload.bin"
+    ext = Path(safe_name).suffix.lower()
+    allowed = ALLOWED_EXTENSIONS.get(subdir)
+    if allowed and ext not in allowed:
+        raise HTTPException(400, f"Unsupported file extension '{ext}' for {subdir}")
     data = await upload.read()
     max_bytes = settings.max_upload_mb * 1024 * 1024
     if len(data) > max_bytes:
         raise HTTPException(413, f"File exceeds {settings.max_upload_mb}MB limit")
     dest = UPLOAD_DIR / subdir
     dest.mkdir(parents=True, exist_ok=True)
-    safe_name = "".join(c for c in upload.filename if c.isalnum() or c in "._-") or "upload.bin"
-    dest_file = dest / f"{sku}_{safe_name}"
+    dest_file = (dest / f"{safe_sku}_{safe_name}").resolve()
+    if not dest_file.is_relative_to(dest.resolve()):
+        raise HTTPException(400, "Invalid file path")
     dest_file.write_bytes(data)
     return str(dest_file.relative_to(ROOT)).replace("\\", "/")
 
