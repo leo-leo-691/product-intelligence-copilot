@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     translate_enabled: bool = True
     kg_enabled: bool = True
 
+    # UniHack catalog enrichment
+    unihack_enrichment_enabled: bool = True
+    unihack_search_max_results: int = 5
+    unihack_request_timeout: float = 20.0
+    unihack_request_delay: float = 0.6
+    unihack_max_retries: int = 2
+    unihack_max_source_pages: int = 3
+    unihack_batch_workers: int = 4
+    unihack_batch_size: int = 10
+
     def cors_origin_list(self) -> list[str]:
         """Parsed CORS origins (trailing slashes stripped)."""
         origins = [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
