@@ -71,6 +71,9 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_products_batch ON products(batch_id);
             """
         )
+    from backend.app.unihack.store import init_unihack_db
+
+    init_unihack_db()
     logger.info("Database ready at %s", DB_PATH)
 
 

@@ -175,6 +175,9 @@ export default function DashboardPage() {
               <Link to="/review" className="btn-primary">
                 Open review
               </Link>
+              <Link to="/evaluation" className="btn-secondary">
+                UniHack Evaluation
+              </Link>
             </div>
           </section>
 

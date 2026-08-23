@@ -600,3 +600,8 @@ def api_corrections(limit: int = 50):
         return recent_corrections(min(limit, 200))
     except Exception as e:
         raise HTTPException(500, str(e)) from e
+
+
+from backend.app.unihack.router import router as unihack_router
+
+app.include_router(unihack_router)

@@ -18,6 +18,65 @@
 
 **Health:** https://product-intelligence-copilot-api.onrender.com/health
 
+## Product Demo vs UniHack Evaluation
+
+This repo contains **two isolated workflows**:
+
+### Product Demo (26 products)
+
+Interactive copilot: ingest PDF/text, Review, Batch Dashboard, provenance, confidence, conflicts, dual-LLM. Load via **Load 26-product demo batch**. Demo gold-label match rate is **not** UniHack field accuracy.
+
+### UniHack Evaluation (official challenge)
+
+UI: **UniHack Evaluation** (`/evaluation`).
+
+```
+Official Input
+     ↓
+Dataset Ingestion
+     ↓
+Normalization
+     ↓
+Classification
+     ↓
+Manufacturer / Brand Resolution
+     ↓
+Attribute Extraction
+     ↓
+UOM / LOV Validation
+     ↓
+Description Generation
+     ↓
+Evidence + Provenance
+     ↓
+Confidence + Conflict Detection
+     ↓
+Human Review
+     ↓
+252-Column Delivery Output
+     ↓
+CSV / XLSX
+     ↓
+Ground Truth Evaluation
+```
+
+Place official files in `data/unihack/` (see that folder’s README). **This repository does not ship the official 1,000-row / 200-row / 252-column workbooks.** Until those files are present:
+
+- the evaluator will not invent headers or metrics
+- the UI shows **Evaluation has not been run yet** / **N/A**
+- API responses include `MISSING INPUT: <filename>`
+
+When files are present:
+
+```bash
+# from repo root, API running
+curl -X POST http://localhost:8000/api/unihack/run
+curl http://localhost:8000/api/unihack/evaluation
+# Download: GET /api/unihack/export/csv  and  /api/unihack/export/xlsx
+```
+
+---
+
 ## The problem
 
 Industrial distributors and manufacturers still rely on manual transcription from PDF datasheets, scanned spec sheets, and supplier portals. Generic LLM prompts return JSON with no provenance, no confidence layer, and a tendency to **invent** missing values. Catalog teams cannot trust or audit those outputs at scale.
@@ -385,7 +444,11 @@ python scripts/smoke_test.py
 python scripts/run_batch.py
 
 # LLM provider + dual-LLM tests (mocked — no real API calls)
-python -m pytest backend/tests/test_llm_providers.py backend/tests/test_dual_llm.py -v
+# LLM provider + dual-LLM tests (mocked — no real API calls)
+python -m pytest backend/tests -v
+
+# UniHack pipeline tests (synthetic 252-header fixtures; no official files required)
+python -m pytest backend/tests/test_unihack.py -v
 
 # Frontend production build
 cd frontend && npm run build

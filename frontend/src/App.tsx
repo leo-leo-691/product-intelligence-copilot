@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { fetchHealth, HealthInfo } from "./api";
 import ConfidenceStamp, { StampFilterDefs } from "./components/ConfidenceStamp";
 import DashboardPage from "./pages/Dashboard";
+import EvaluationPage from "./pages/Evaluation";
 import ReviewPage from "./pages/Review";
 import UploadPage from "./pages/Upload";
 
@@ -39,6 +40,9 @@ export default function App() {
             <NavLink to="/dashboard" className={navClass}>
               Dashboard
             </NavLink>
+            <NavLink to="/evaluation" className={navClass}>
+              UniHack Evaluation
+            </NavLink>
             <span
               title={
                 health
@@ -64,6 +68,7 @@ export default function App() {
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/review/:id" element={<ReviewPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/evaluation" element={<EvaluationPage />} />
         </Routes>
       </main>
     </div>

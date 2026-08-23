@@ -257,3 +257,72 @@ export async function downloadExport(kind: "csv" | "json", approvedOnly = false)
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+export type UnihackFileInfo = {
+  present: boolean;
+  path: string | null;
+  missing_hint: string | null;
+};
+
+export async function fetchUnihackSchema(): Promise<{
+  available: boolean;
+  header_count: number | null;
+  headers: string[];
+  error?: string;
+}> {
+  const r = await apiFetch("/api/unihack/schema");
+  return parseJson(r);
+}
+
+export async function fetchUnihackFiles(): Promise<{ files: Record<string, UnihackFileInfo> }> {
+  const r = await apiFetch("/api/unihack/files");
+  return parseJson(r);
+}
+
+export async function uploadUnihackFile(kind: string, file: File): Promise<unknown> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await apiFetch(`/api/unihack/import?kind=${encodeURIComponent(kind)}`, {
+    method: "POST",
+    body: fd,
+  });
+  return parseJson(r);
+}
+
+export async function runUnihackJob(evaluate = true): Promise<Record<string, unknown>> {
+  const r = await apiFetch(`/api/unihack/run?evaluate=${evaluate}&use_official=true`, {
+    method: "POST",
+  });
+  return parseJson(r);
+}
+
+export async function fetchUnihackStatus(jobId?: string): Promise<Record<string, unknown>> {
+  const r = await apiFetch(jobId ? `/api/unihack/status/${jobId}` : "/api/unihack/status");
+  return parseJson(r);
+}
+
+export async function fetchUnihackEvaluation(): Promise<Record<string, unknown>> {
+  const r = await apiFetch("/api/unihack/evaluation");
+  return parseJson(r);
+}
+
+export async function fetchUnihackRows(flaggedOnly = true): Promise<{ rows: Record<string, unknown>[] }> {
+  const r = await apiFetch(`/api/unihack/rows?flagged_only=${flaggedOnly}&limit=40`);
+  return parseJson(r);
+}
+
+export async function downloadUnihackExport(kind: "csv" | "xlsx"): Promise<void> {
+  const r = await apiFetch(`/api/unihack/export/${kind}`);
+  if (!r.ok) {
+    throw new Error((await r.text()) || `UniHack export failed (${r.status})`);
+  }
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = kind === "csv" ? "unihack-delivery.csv" : "unihack-delivery.xlsx";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

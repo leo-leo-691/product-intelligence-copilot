@@ -77,7 +77,9 @@ export default function UploadPage() {
           <p className="font-mono text-[11px] uppercase tracking-label text-ink-soft">Intake desk</p>
           <h1 className="page-title mt-1">Ingest product data</h1>
           <p className="mt-2 max-w-xl font-sans text-sm text-ink-soft">
-            PDF, image, pasted text, or URL — multi-source extraction with provenance.
+            Product Demo: PDF, image, pasted text, or URL. Use{" "}
+            <strong>Load 26-product demo batch</strong> for the interactive copilot. Official UniHack
+            1,000-row evaluation lives on UniHack Evaluation — not this demo.
           </p>
         </div>
         <button type="button" onClick={onDemoBatch} disabled={batchLoading} className="btn-secondary">
