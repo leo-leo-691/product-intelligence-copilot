@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   downloadUnihackExport,
   fetchUnihackEvaluation,
@@ -6,9 +7,8 @@ import {
   fetchUnihackRows,
   fetchUnihackSchema,
   fetchUnihackStatus,
-  runUnihackJob,
+  getUserErrorMessage,
   UnihackFileInfo,
-  uploadUnihackFile,
 } from "../api";
 
 function metric(value: unknown): string {
@@ -23,9 +23,8 @@ export default function EvaluationPage() {
   const [evalData, setEvalData] = useState<Record<string, unknown> | null>(null);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [headerCount, setHeaderCount] = useState<number | null>(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [uploadKind, setUploadKind] = useState("input");
+  const [error, setError] = useState<{ title: string; body: string } | null>(null);
+  const [downloading, setDownloading] = useState<"csv" | "xlsx" | null>(null);
 
   async function refresh() {
     try {
@@ -38,7 +37,7 @@ export default function EvaluationPage() {
       const f = await fetchUnihackFiles();
       setFiles(f.files || {});
     } catch (e) {
-      setError(String(e));
+      setError(getUserErrorMessage(e, "service"));
     }
     try {
       setStatus(await fetchUnihackStatus());
@@ -64,36 +63,6 @@ export default function EvaluationPage() {
     return () => clearInterval(t);
   }, []);
 
-  async function onUpload(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const input = e.currentTarget.elements.namedItem("dataset") as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    setBusy(true);
-    setError("");
-    try {
-      await uploadUnihackFile(uploadKind, file);
-      await refresh();
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onRun() {
-    setBusy(true);
-    setError("");
-    try {
-      await runUnihackJob(true);
-      await refresh();
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const jobStatus = String(status?.status ?? "");
   const evaluated = Boolean(evalData && evalData.available);
   const progress = status?.progress as { total?: number } | undefined;
@@ -105,33 +74,43 @@ export default function EvaluationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-dashed border-rule-line pb-4">
-        <p className="font-mono text-[11px] uppercase tracking-label text-ink-soft">
-          UniHack 2026 · Separate from 26-product demo
-        </p>
-        <h1 className="page-title mt-1">Catalog Enrichment Pipeline</h1>
-        <p className="mt-1 font-mono text-[11px] uppercase tracking-label text-ink-soft">
-          UniHack 2026
-        </p>
-        <p className="mt-2 max-w-2xl font-sans text-sm text-ink-soft">
-          This workflow processes the official evaluation input and writes every header from the
-          official Expected Output sheet. It is separate from Ingest / Review / Dashboard (the
-          26-product Product Intelligence Copilot demo). Confidence scores are not accuracy.
-        </p>
-        <div className="mt-3 font-mono text-[10px] uppercase text-ink-soft space-y-0.5">
-          <div>Input · Dynamic rows · Dynamic source columns</div>
-          <div className="ml-2">↓</div>
-          <div>AI / Data Enrichment</div>
-          <div className="ml-2">↓</div>
-          <div>Validation</div>
-          <div className="ml-2">↓</div>
-          <div>Official Delivery Format · {loadedHeaders ? `${loadedHeaders} fields` : "252 fields"}</div>
-          <div className="ml-2">↓</div>
-          <div>CSV / XLSX</div>
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-dashed border-rule-line pb-4">
+        <div>
+          <p className="font-mono text-[11px] uppercase tracking-label text-ink-soft">
+            Catalog enrichment results
+          </p>
+          <h1 className="page-title mt-1">Catalog Enrichment Results</h1>
+          <p className="mt-2 max-w-2xl font-sans text-sm text-ink-soft">
+            Review processing results, schema validation, evaluation metrics, and downloadable output.
+          </p>
         </div>
+        <Link to="/upload" className="btn-secondary">
+          Start New Ingestion
+        </Link>
       </div>
 
-      {error && <p className="font-mono text-sm text-stamp-flagged">{error}</p>}
+      {/* Empty state when no job has been run */}
+      {!jobStatus && !processedRows && !loadedHeaders && (
+        <div className="panel border-dashed p-8 text-center">
+          <p className="font-display text-lg uppercase tracking-stencil text-ink">NO DATASET RESULTS YET</p>
+          <p className="mt-2 font-sans text-sm text-ink-soft">
+            Upload a CSV or Excel catalog from Ingest to begin catalog enrichment.
+          </p>
+          <Link to="/upload" className="btn-primary mt-5 inline-flex">
+            Go to Ingest
+          </Link>
+        </div>
+      )}
+
+      {error && (
+        <div className="border border-stamp-flagged bg-paper p-4" role="alert">
+          <p className="font-display text-sm uppercase tracking-stencil text-stamp-flagged">{error.title}</p>
+          <p className="mt-1 font-sans text-sm text-ink-soft">{error.body}</p>
+          <button type="button" className="btn-secondary mt-3" onClick={refresh}>
+            Retry
+          </button>
+        </div>
+      )}
 
       <section className="panel p-5 sm:p-6">
         <h2 className="font-display text-sm uppercase tracking-stencil text-ink">Dataset (loaded)</h2>
@@ -171,37 +150,16 @@ export default function EvaluationPage() {
       </section>
 
       <section className="panel p-5 sm:p-6">
-        <h2 className="font-display text-sm uppercase tracking-stencil text-ink">Files</h2>
+        <h2 className="font-display text-sm uppercase tracking-stencil text-ink">Dataset Sources</h2>
         <hr className="rule-tear" />
         <ul className="space-y-1 font-mono text-xs text-ink">
           {Object.entries(files).map(([kind, info]) => (
             <li key={kind}>
-              {info.present ? "PRESENT" : "MISSING"} · {kind}
+              {info.present ? "PRESENT" : "MISSING"} · {kind.replace(/_/g, " ")}
               {!info.present && info.missing_hint ? ` — ${info.missing_hint}` : ""}
             </li>
           ))}
         </ul>
-        <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={onUpload}>
-          <label className="block">
-            <span className="form-label">Upload kind</span>
-            <select
-              className="form-underline appearance-none"
-              value={uploadKind}
-              onChange={(e) => setUploadKind(e.target.value)}
-            >
-              <option value="input">Evaluation input</option>
-              <option value="ground_truth">Ground truth (optional)</option>
-              <option value="delivery_schema">Expected Output sheet</option>
-              <option value="manufacturers">Manufacturer list (optional)</option>
-              <option value="lov">LOV (optional)</option>
-              <option value="uom">UOM (optional)</option>
-            </select>
-          </label>
-          <input name="dataset" type="file" accept=".xlsx,.csv" className="font-mono text-xs" />
-          <button type="submit" className="btn-secondary" disabled={busy}>
-            Upload
-          </button>
-        </form>
       </section>
 
       <section className="panel p-5 sm:p-6">
@@ -290,12 +248,7 @@ export default function EvaluationPage() {
             </div>
           </div>
         )}
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button type="button" className="btn-primary" disabled={busy} onClick={onRun}>
-            {busy ? "Running…" : "Process evaluation dataset"}
-          </button>
-          <p className="self-center font-mono text-xs text-ink-soft">Job: {jobStatus || "none"}</p>
-        </div>
+        <p className="mt-4 font-mono text-xs text-ink-soft">Job: {jobStatus || "none"}</p>
       </section>
 
       <section className="panel p-5 sm:p-6">
@@ -309,30 +262,40 @@ export default function EvaluationPage() {
           <button
             type="button"
             className="btn-secondary"
-            disabled={!jobStatus || jobStatus === "FAILED" || jobStatus === "none"}
-            onClick={() => downloadUnihackExport("csv").catch((e) => setError(String(e)))}
+            disabled={!!downloading || !jobStatus || jobStatus === "FAILED" || jobStatus === "none"}
+            onClick={async () => {
+              setDownloading("csv");
+              setError(null);
+              try {
+                await downloadUnihackExport("csv");
+              } catch (e) {
+                setError(getUserErrorMessage(e, "processing"));
+              } finally {
+                setDownloading(null);
+              }
+            }}
           >
-            Download CSV
+            {downloading === "csv" ? "Downloading..." : "Download CSV"}
           </button>
           <button
             type="button"
             className="btn-secondary"
-            disabled={!jobStatus || jobStatus === "FAILED" || jobStatus === "none"}
-            onClick={() => downloadUnihackExport("xlsx").catch((e) => setError(String(e)))}
+            disabled={!!downloading || !jobStatus || jobStatus === "FAILED" || jobStatus === "none"}
+            onClick={async () => {
+              setDownloading("xlsx");
+              setError(null);
+              try {
+                await downloadUnihackExport("xlsx");
+              } catch (e) {
+                setError(getUserErrorMessage(e, "processing"));
+              } finally {
+                setDownloading(null);
+              }
+            }}
           >
-            Download XLSX
+            {downloading === "xlsx" ? "Downloading..." : "Download XLSX"}
           </button>
         </div>
-      </section>
-
-      <section className="panel p-5 sm:p-6">
-        <h2 className="font-display text-sm uppercase tracking-stencil text-ink">Pipeline</h2>
-        <hr className="rule-tear" />
-        <p className="font-mono text-xs leading-6 text-ink">
-          Official input → normalize placeholders → copy matching fields → optional catalog/LOV/UOM
-          → descriptions from source text only → validate → human review flags → Expected Output
-          CSV/XLSX
-        </p>
       </section>
 
       {rows.length > 0 && (

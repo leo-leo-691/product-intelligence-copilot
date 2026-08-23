@@ -7,6 +7,7 @@ import {
   fetchDashboard,
   fetchEvalMatchRate,
   fetchProducts,
+  getUserErrorMessage,
   ProductRecord,
   runDemoBatch,
 } from "../api";
@@ -16,14 +17,14 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [evalInfo, setEvalInfo] = useState<EvalMatchRate | null>(null);
   const [products, setProducts] = useState<ProductRecord[]>([]);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; body: string } | null>(null);
   const [loadingBatch, setLoadingBatch] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "json" | null>(null);
 
   function refresh() {
     fetchDashboard()
       .then(setStats)
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(getUserErrorMessage(e, "service")));
     fetchEvalMatchRate()
       .then(setEvalInfo)
       .catch(() => setEvalInfo(null));
@@ -66,7 +67,7 @@ export default function DashboardPage() {
           </p>
           <h1 className="page-title mt-1">Batch dashboard</h1>
           <p className="mt-2 max-w-xl font-sans text-sm text-ink-soft">
-            Aggregates results from completed pipeline runs. Start with the 26-product demo batch from Ingest, or run the batch script locally.
+            Aggregates results from completed product intelligence runs. Start with the 26-product demo from Ingest, or process product data.
           </p>
         </div>
         <button
@@ -75,12 +76,12 @@ export default function DashboardPage() {
           className="btn-secondary"
           onClick={async () => {
             setLoadingBatch(true);
-            setError("");
+            setError(null);
             try {
               await runDemoBatch();
               refresh();
             } catch (e) {
-              setError(String(e));
+              setError(getUserErrorMessage(e, "processing"));
             } finally {
               setLoadingBatch(false);
             }
@@ -90,16 +91,24 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {error && <p className="font-mono text-sm text-stamp-flagged">{error}</p>}
+      {error && (
+        <div className="border border-stamp-flagged bg-paper p-4" role="alert">
+          <p className="font-display text-sm uppercase tracking-stencil text-stamp-flagged">{error.title}</p>
+          <p className="mt-1 font-sans text-sm text-ink-soft">{error.body}</p>
+          <button type="button" className="btn-secondary mt-3" onClick={refresh}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {!stats || stats.total_products === 0 ? (
         <div className="panel border-dashed p-8 text-center">
-          <p className="font-sans text-ink-soft">No batch data yet.</p>
+          <p className="font-display text-lg uppercase tracking-stencil text-ink">NO BATCH DATA YET</p>
           <p className="mt-2 font-sans text-sm text-ink-soft">
-            Run the 26-product demo batch from Ingest to populate this dashboard.
+            Run the demo or process product data from Ingest to populate this dashboard.
           </p>
           <Link to="/upload" className="btn-primary mt-4 inline-flex">
-            Load demo batch
+            Go to Ingest
           </Link>
         </div>
       ) : (
@@ -142,11 +151,11 @@ export default function DashboardPage() {
                 disabled={!!exporting}
                 onClick={async () => {
                   setExporting("csv");
-                  setError("");
+                  setError(null);
                   try {
                     await downloadExport("csv", false);
                   } catch (e) {
-                    setError(String(e));
+                    setError(getUserErrorMessage(e, "processing"));
                   } finally {
                     setExporting(null);
                   }
@@ -160,11 +169,11 @@ export default function DashboardPage() {
                 disabled={!!exporting}
                 onClick={async () => {
                   setExporting("json");
-                  setError("");
+                  setError(null);
                   try {
                     await downloadExport("json", false);
                   } catch (e) {
-                    setError(String(e));
+                    setError(getUserErrorMessage(e, "processing"));
                   } finally {
                     setExporting(null);
                   }
@@ -176,7 +185,7 @@ export default function DashboardPage() {
                 Open review
               </Link>
               <Link to="/evaluation" className="btn-secondary">
-                UniHack Evaluation
+                Evaluation
               </Link>
             </div>
           </section>

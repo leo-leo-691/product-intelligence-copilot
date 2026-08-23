@@ -30,7 +30,14 @@ _UPLOAD_KINDS = {
 
 def _save_upload(kind: str, upload: UploadFile) -> Path:
     UNIHACK_UPLOADS.mkdir(parents=True, exist_ok=True)
-    dest = UNIHACK_UPLOADS / (upload.filename or f"{kind}.xlsx")
+    src_name = upload.filename or f"{kind}.xlsx"
+    suffix = Path(src_name).suffix or ".xlsx"
+    canonical = {
+        "input": f"sample_input{suffix}",
+        "ground_truth": f"unilog_sample_200_items_input_vs_output{suffix}",
+        "delivery_schema": f"expected_output{suffix}",
+    }.get(kind)
+    dest = UNIHACK_UPLOADS / (canonical or src_name)
     dest.write_bytes(upload.file.read())
     return dest
 

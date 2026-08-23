@@ -5,6 +5,7 @@ import {
   bulkApproveHigh,
   fetchProduct,
   fetchProducts,
+  getUserErrorMessage,
   propagationAction,
   ProductRecord,
   PropagationSuggestion,
@@ -22,21 +23,21 @@ export default function ReviewPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [modal, setModal] = useState<PropagationSuggestion | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; body: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState("");
 
   useEffect(() => {
     fetchProducts()
       .then(setList)
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(getUserErrorMessage(e, "service")));
   }, []);
 
   useEffect(() => {
     if (id) {
       fetchProduct(id)
         .then(setRecord)
-        .catch((e) => setError(String(e)));
+        .catch((e) => setError(getUserErrorMessage(e, "service")));
     } else if (list.length) {
       nav(`/review/${list[0].id}`, { replace: true });
     }
@@ -51,9 +52,9 @@ export default function ReviewPage() {
   if (!list.length && !error) {
     return (
       <div className="panel p-8 text-center">
-        <p className="font-display text-lg uppercase tracking-stencil text-ink">No products yet</p>
+        <p className="font-display text-lg uppercase tracking-stencil text-ink">NO PRODUCTS YET</p>
         <p className="mt-2 font-sans text-sm text-ink-soft">
-          Load the 26-product demo batch from Ingest, or upload a datasheet.
+          Upload a product document from Ingest to begin extraction.
         </p>
         <Link to="/upload" className="btn-primary mt-5 inline-flex">
           Go to Ingest
@@ -63,7 +64,21 @@ export default function ReviewPage() {
   }
 
   if (!record) {
-    return <p className="font-mono text-sm text-ink-soft">{error || "Loading product…"}</p>;
+    return (
+      <div className="space-y-4">
+        {error ? (
+          <div className="border border-stamp-flagged bg-paper p-4" role="alert">
+            <p className="font-display text-sm uppercase tracking-stencil text-stamp-flagged">{error.title}</p>
+            <p className="mt-1 font-sans text-sm text-ink-soft">{error.body}</p>
+            <Link to="/upload" className="btn-secondary mt-3 inline-flex">
+              Go to Ingest
+            </Link>
+          </div>
+        ) : (
+          <p className="font-mono text-sm text-ink-soft">Loading product...</p>
+        )}
+      </div>
+    );
   }
 
   const conflictFields = new Set(record.conflicts.filter((c) => !c.resolved).map((c) => c.field_name));
@@ -74,7 +89,7 @@ export default function ReviewPage() {
       const res = await reviewField(record!.id, name, "approved");
       setRecord(res.product);
     } catch (e) {
-      setError(String(e));
+      setError(getUserErrorMessage(e, "processing"));
     } finally {
       setBusy(false);
     }
@@ -86,7 +101,7 @@ export default function ReviewPage() {
       const res = await reviewField(record!.id, name, "rejected");
       setRecord(res.product);
     } catch (e) {
-      setError(String(e));
+      setError(getUserErrorMessage(e, "processing"));
     } finally {
       setBusy(false);
     }
@@ -102,7 +117,7 @@ export default function ReviewPage() {
       setEdits((prev) => ({ ...prev, [name]: "" }));
       fetchProducts().then(setList);
     } catch (e) {
-      setError(String(e));
+      setError(getUserErrorMessage(e, "processing"));
     } finally {
       setBusy(false);
     }
@@ -114,7 +129,7 @@ export default function ReviewPage() {
       const updated = await bulkApproveHigh(record!.id);
       setRecord(updated);
     } catch (e) {
-      setError(String(e));
+      setError(getUserErrorMessage(e, "processing"));
     } finally {
       setBusy(false);
     }
@@ -126,7 +141,7 @@ export default function ReviewPage() {
       const updated = await approveRecord(record!.id);
       setRecord(updated);
     } catch (e) {
-      setError(String(e));
+      setError(getUserErrorMessage(e, "processing"));
     } finally {
       setBusy(false);
     }
@@ -202,7 +217,12 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        {error && <p className="font-mono text-sm text-stamp-flagged">{error}</p>}
+        {error && (
+          <div className="border border-stamp-flagged bg-paper p-4" role="alert">
+            <p className="font-display text-sm uppercase tracking-stencil text-stamp-flagged">{error.title}</p>
+            <p className="mt-1 font-sans text-sm text-ink-soft">{error.body}</p>
+          </div>
+        )}
 
         {(record.outliers?.length ?? 0) > 0 && (
           <section className="border border-stamp-review bg-paper p-4">
@@ -298,7 +318,7 @@ export default function ReviewPage() {
                                 const updated = await resolveConflict(record.id, c.field_name, x.value);
                                 setRecord(updated);
                               } catch (e) {
-                                setError(String(e));
+                                setError(getUserErrorMessage(e, "processing"));
                               } finally {
                                 setBusy(false);
                               }

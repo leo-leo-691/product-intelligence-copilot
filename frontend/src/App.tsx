@@ -41,7 +41,7 @@ export default function App() {
               Dashboard
             </NavLink>
             <NavLink to="/evaluation" className={navClass}>
-              UniHack Evaluation
+              Evaluation
             </NavLink>
             <span
               title={

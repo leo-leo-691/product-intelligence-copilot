@@ -133,12 +133,82 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
   return fetch(apiUrl(path), { ...init, headers });
 }
 
+export class ApiError extends Error {
+  status: number;
+  detail: string;
+
+  constructor(status: number, detail: string) {
+    super(detail || `HTTP ${status}`);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+async function responseText(r: Response): Promise<string> {
+  const text = await r.text();
+  if (!text) return "";
+  try {
+    const parsed = JSON.parse(text) as { detail?: unknown; error?: unknown; message?: unknown };
+    return String(parsed.detail ?? parsed.error ?? parsed.message ?? text);
+  } catch {
+    return text;
+  }
+}
+
 async function parseJson<T>(r: Response): Promise<T> {
   if (!r.ok) {
-    const text = await r.text();
-    throw new Error(text || `HTTP ${r.status}`);
+    throw new ApiError(r.status, await responseText(r));
   }
   return r.json();
+}
+
+export function getUserErrorMessage(
+  err: unknown,
+  context: "service" | "processing" | "invalid" | "status" = "processing"
+): { title: string; body: string } {
+  if (err instanceof TypeError) {
+    return {
+      title: "PROCESSING SERVICE UNAVAILABLE",
+      body: "Start the processing service and try again.",
+    };
+  }
+  if (err instanceof ApiError) {
+    if (err.status >= 500 || err.status === 0) {
+      return {
+        title: "PROCESSING SERVICE UNAVAILABLE",
+        body: "We couldn't connect to the processing service. Please try again.",
+      };
+    }
+    if (err.status === 400 || err.status === 413 || err.status === 415 || err.status === 422) {
+      return {
+        title: "INPUT COULD NOT BE PROCESSED",
+        body: "Check the file format and try again.",
+      };
+    }
+  }
+  if (context === "service") {
+    return {
+      title: "PROCESSING SERVICE UNAVAILABLE",
+      body: "Start the processing service and try again.",
+    };
+  }
+  if (context === "status") {
+    return {
+      title: "PROCESSING STATUS UNAVAILABLE",
+      body: "We couldn't check the latest processing status. Please try again.",
+    };
+  }
+  if (context === "invalid") {
+    return {
+      title: "INPUT COULD NOT BE PROCESSED",
+      body: "Check the file format and try again.",
+    };
+  }
+  return {
+    title: "PROCESSING FAILED",
+    body: "Something went wrong while processing this input.",
+  };
 }
 
 export async function fetchHealth(): Promise<HealthInfo> {
@@ -245,7 +315,7 @@ export async function fetchEvalMatchRate(): Promise<EvalMatchRate> {
 export async function downloadExport(kind: "csv" | "json", approvedOnly = false): Promise<void> {
   const r = await apiFetch(`/api/export/${kind}?approved_only=${approvedOnly}`);
   if (!r.ok) {
-    throw new Error((await r.text()) || `Export failed (${r.status})`);
+    throw new ApiError(r.status, (await responseText(r)) || "Export failed");
   }
   const blob = await r.blob();
   const url = URL.createObjectURL(blob);
@@ -314,7 +384,7 @@ export async function fetchUnihackRows(flaggedOnly = true): Promise<{ rows: Reco
 export async function downloadUnihackExport(kind: "csv" | "xlsx"): Promise<void> {
   const r = await apiFetch(`/api/unihack/export/${kind}`);
   if (!r.ok) {
-    throw new Error((await r.text()) || `UniHack export failed (${r.status})`);
+    throw new ApiError(r.status, (await responseText(r)) || "Export failed");
   }
   const blob = await r.blob();
   const url = URL.createObjectURL(blob);
