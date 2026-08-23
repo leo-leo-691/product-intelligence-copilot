@@ -38,6 +38,13 @@ def _save_upload(kind: str, upload: UploadFile) -> Path:
         "delivery_schema": f"expected_output{suffix}",
     }.get(kind)
     dest = UNIHACK_UPLOADS / (canonical or src_name)
+    if canonical:
+        stem = Path(canonical).stem
+        for p in UNIHACK_UPLOADS.glob(f"{stem}.*"):
+            try:
+                p.unlink()
+            except Exception:
+                pass
     dest.write_bytes(upload.file.read())
     return dest
 
@@ -80,7 +87,25 @@ async def unihack_import(kind: str = "input", file: UploadFile = File(...)):
     if kind not in _UPLOAD_KINDS:
         raise HTTPException(400, f"Unknown kind '{kind}'. Use: {sorted(_UPLOAD_KINDS)}")
     path = _save_upload(kind, file)
-    return {"saved": str(path), "filename": path.name, "kind": kind, "files": inventory()}
+
+    metadata = {}
+    if kind == "input":
+        try:
+            from backend.app.unihack.ingest import ingest_input_workbook
+            info = ingest_input_workbook(path)
+            metadata = {
+                "row_count": info.get("row_count", 0),
+                "column_count": len(info.get("input_headers", [])),
+                "headers": info.get("input_headers", []),
+            }
+        except Exception as exc:
+            try:
+                path.unlink()
+            except Exception:
+                pass
+            raise HTTPException(400, detail=f"Invalid catalog workbook: {exc}")
+
+    return {"saved": str(path), "filename": path.name, "kind": kind, "files": inventory(), "metadata": metadata}
 
 
 @router.post("/run")
