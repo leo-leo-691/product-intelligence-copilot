@@ -349,14 +349,26 @@ export async function fetchUnihackFiles(): Promise<{ files: Record<string, Uniha
   return parseJson(r);
 }
 
-export async function uploadUnihackFile(kind: string, file: File): Promise<unknown> {
+export interface UnihackImportResponse {
+  saved: string;
+  filename: string;
+  kind: string;
+  files: Record<string, UnihackFileInfo>;
+  metadata?: {
+    row_count?: number | null;
+    column_count?: number | null;
+    headers?: string[];
+  };
+}
+
+export async function uploadUnihackFile(kind: string, file: File): Promise<UnihackImportResponse> {
   const fd = new FormData();
   fd.append("file", file);
   const r = await apiFetch(`/api/unihack/import?kind=${encodeURIComponent(kind)}`, {
     method: "POST",
     body: fd,
   });
-  return parseJson(r);
+  return parseJson<UnihackImportResponse>(r);
 }
 
 export async function runUnihackJob(evaluate = true): Promise<Record<string, unknown>> {

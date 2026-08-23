@@ -28,6 +28,7 @@ type DetectedInput = {
   columns: number | null;
   deliveryHeaders: number | null;
   analyzing: boolean;
+  headers: string[] | null;
 };
 
 type UiError = {
@@ -134,6 +135,37 @@ export default function UploadPage() {
   /*  File detection                                                    */
   /* ---------------------------------------------------------------- */
 
+  const uploadAndAnalyzeCatalog = useCallback(async (file: File) => {
+    setDetected((prev) =>
+      prev
+        ? {
+            ...prev,
+            analyzing: true,
+          }
+        : null
+    );
+    setError(null);
+    try {
+      const res = await uploadUnihackFile("input", file);
+      const schema = await fetchUnihackSchema();
+      setDetected((prev) =>
+        prev
+          ? {
+              ...prev,
+              analyzing: false,
+              rows: res.metadata?.row_count ?? null,
+              columns: res.metadata?.column_count ?? null,
+              deliveryHeaders: schema.available ? schema.header_count : null,
+              headers: res.metadata?.headers ?? null,
+            }
+          : null
+      );
+    } catch (err) {
+      setError(getUserErrorMessage(err, "processing"));
+      setDetected((prev) => (prev ? { ...prev, analyzing: false } : null));
+    }
+  }, []);
+
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0]; // Process one file at a time
@@ -150,6 +182,7 @@ export default function UploadPage() {
         columns: null,
         deliveryHeaders: null,
         analyzing: false,
+        headers: null,
       });
       setInputMode("file");
       setError({
@@ -168,31 +201,18 @@ export default function UploadPage() {
       rows: null,
       columns: null,
       deliveryHeaders: null,
-      analyzing: false,
+      analyzing: workflow === "catalog",
+      headers: null,
     });
     setInputMode("file");
     setError(null);
     setDatasetResult(null);
     setDatasetProgress(null);
-  }, []);
 
-  async function loadCatalogSchemaMetadata() {
-    try {
-      const schema = await fetchUnihackSchema();
-      setDetected((prev) =>
-        prev
-          ? {
-              ...prev,
-              analyzing: false,
-              deliveryHeaders: schema.available ? schema.header_count : null,
-            }
-          : null
-      );
-    } catch (err) {
-      setError(getUserErrorMessage(err, "service"));
-      setDetected((prev) => (prev ? { ...prev, analyzing: false } : null));
+    if (workflow === "catalog") {
+      uploadAndAnalyzeCatalog(file);
     }
-  }
+  }, [uploadAndAnalyzeCatalog]);
 
   /* ---------------------------------------------------------------- */
   /*  Text / URL detection                                              */
@@ -210,6 +230,7 @@ export default function UploadPage() {
       columns: null,
       deliveryHeaders: null,
       analyzing: false,
+      headers: null,
     });
     setInputMode("text");
     setShowAmbiguous(false);
@@ -229,6 +250,7 @@ export default function UploadPage() {
       columns: null,
       deliveryHeaders: null,
       analyzing: false,
+      headers: null,
     });
     setInputMode("url");
     setShowAmbiguous(false);
@@ -318,16 +340,13 @@ export default function UploadPage() {
   /* ---------------------------------------------------------------- */
 
   async function onSubmitDataset() {
-    if (datasetProcessing || !detected?.file) return;
+    if (datasetProcessing) return;
     setDatasetProcessing(true);
     setDatasetProgress(null);
     setDatasetResult(null);
     setError(null);
 
     try {
-      setDetected((prev) => (prev ? { ...prev, analyzing: true } : null));
-      await uploadUnihackFile("input", detected.file);
-      await loadCatalogSchemaMetadata();
       const job = await runUnihackJob(true);
       const jobId = job.id as string;
 
@@ -389,7 +408,6 @@ export default function UploadPage() {
     } catch (err) {
       setError(getUserErrorMessage(err, "processing"));
       setDatasetProcessing(false);
-      setDetected((prev) => (prev ? { ...prev, analyzing: false } : null));
     }
   }
 
@@ -417,11 +435,11 @@ export default function UploadPage() {
   /* ---------------------------------------------------------------- */
 
   function forceWorkflow(wf: Workflow) {
+    const file = detected?.file;
     setDetected((prev) => (prev ? { ...prev, workflow: wf } : null));
     setShowAmbiguous(false);
-    if (wf === "catalog" && detected?.file) {
-      setDetected((prev) => (prev ? { ...prev, analyzing: true } : null));
-      loadCatalogSchemaMetadata();
+    if (wf === "catalog" && file) {
+      uploadAndAnalyzeCatalog(file);
     }
   }
 
@@ -630,7 +648,19 @@ export default function UploadPage() {
             {detected.analyzing && (
               <div>
                 <p className="form-label">Status</p>
-                <p className="mt-1 font-mono text-sm text-ink-soft">Analyzing dataset…</p>
+                <p className="mt-1 font-mono text-sm text-ink-soft animate-pulse">Analyzing dataset…</p>
+              </div>
+            )}
+            {detected.workflow === "catalog" && detected.rows !== null && !detected.analyzing && (
+              <div>
+                <p className="form-label">Rows</p>
+                <p className="mt-1 font-mono text-sm text-ink">{detected.rows}</p>
+              </div>
+            )}
+            {detected.workflow === "catalog" && detected.columns !== null && !detected.analyzing && (
+              <div>
+                <p className="form-label">Columns</p>
+                <p className="mt-1 font-mono text-sm text-ink">{detected.columns}</p>
               </div>
             )}
             {detected.deliveryHeaders !== null && !detected.analyzing && (
@@ -640,6 +670,24 @@ export default function UploadPage() {
               </div>
             )}
           </div>
+
+          {detected.workflow === "catalog" && detected.headers && detected.headers.length > 0 && !detected.analyzing && (
+            <div className="mt-4 border-t border-dashed border-rule-line pt-3">
+              <p className="form-label">Detected columns</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {detected.headers.slice(0, 3).map((h) => (
+                  <span key={h} className="inline-block border border-rule-line bg-paper px-2 py-0.5 font-mono text-xs text-ink-soft">
+                    {h}
+                  </span>
+                ))}
+                {detected.headers.length > 3 && (
+                  <span className="inline-block px-2 py-0.5 font-mono text-xs text-ink-soft">
+                    + {detected.headers.length - 3} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Catalog — process button */}
           {showDatasetCard && !detected.analyzing && !datasetProcessing && (

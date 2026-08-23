@@ -1,21 +1,25 @@
 """Turn one evaluation input row into a full Expected Output row + provenance.
 
-Unknown output fields stay blank. Values are copied from input when the
-header matches; remaining attributes are never invented.
+Unknown output fields stay blank. Input is copied when headers match; enrichment
+fills additional fields only from retrieved, evidence-based sources.
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from backend.app.unihack.describe import build_descriptions
+from backend.app.unihack.enrich import enrich_product
 from backend.app.unihack.excel import find_column
 from backend.app.unihack.lov import validate_value
 from backend.app.unihack.manufacturer import resolve_brand, resolve_manufacturer
 from backend.app.unihack.normalize import clean_input
 from backend.app.unihack.schema import empty_row, guess_header
 from backend.app.unihack.uom import apply_uom_in_text
+
+logger = logging.getLogger(__name__)
 
 
 def _set(
@@ -27,8 +31,9 @@ def _set(
     confidence: str,
     needs_review: bool = False,
     issues: list[str] | None = None,
+    evidence: str = "",
 ) -> None:
-    if not header:
+    if not header or not value:
         return
     delivery[header] = value
     provenance[header] = {
@@ -38,7 +43,22 @@ def _set(
         "review_status": "pending",
         "needs_review": needs_review,
         "issues": issues or [],
+        "evidence": evidence,
     }
+
+
+def _merge_enrichment(
+    delivery: dict[str, str],
+    provenance: dict[str, dict[str, Any]],
+    enriched_delivery: dict[str, str],
+    enriched_provenance: dict[str, dict[str, Any]],
+) -> None:
+    for header, value in enriched_delivery.items():
+        if not value or delivery.get(header):
+            continue
+        delivery[header] = value
+        if header in enriched_provenance:
+            provenance[header] = enriched_provenance[header]
 
 
 def process_row(
@@ -48,11 +68,13 @@ def process_row(
     manufacturer_path: Path | None = None,
     lov_paths: list[Path] | None = None,
     uom_path: Path | None = None,
+    enrichment_enabled: bool | None = None,
 ) -> dict[str, Any]:
     delivery = empty_row(headers)
     provenance: dict[str, dict[str, Any]] = {}
     issues: list[str] = []
     review = False
+    enrichment_stats: dict[str, Any] = {}
 
     raw_keys = [k for k in raw.keys() if k != "row_number"]
 
@@ -127,19 +149,44 @@ def process_row(
         review = True
         issues.append("Brand not found in catalog — value not invented.")
 
+    # 2) Dynamic catalog enrichment from discovered sources.
+    enrichment = enrich_product(
+        raw,
+        headers,
+        input_delivery=delivery,
+        enrichment_enabled=enrichment_enabled,
+    )
+    enrichment_stats = {
+        "attributes_extracted": enrichment.attributes_extracted,
+        "images_found": enrichment.images_found,
+        "spec_sheet_found": enrichment.spec_sheet_found,
+        "source_url": enrichment.source_url,
+        "error": enrichment.error,
+        "skipped": enrichment.skipped,
+    }
+    if enrichment.delivery:
+        _merge_enrichment(delivery, provenance, enrichment.delivery, enrichment.provenance)
+    if enrichment.error and not enrichment.skipped:
+        issues.append(f"Enrichment partial: {enrichment.error}")
+
+    # Prefer catalog-resolved names, then enriched, then raw input.
+    effective_mfr = mfr.matched_name or delivery.get(mfr_header or "", "") or mfr_q
+    effective_brand = brand.matched_name or delivery.get(brand_header or "", "") or brand_q
+
     desc_h = guess_header(headers, "Part_Desc", "description")
     if desc_h and uom_path:
         new, changed = apply_uom_in_text(delivery.get(desc_h, "") or desc, uom_path)
         if changed:
             _set(delivery, provenance, desc_h, new, "uom", "High")
 
-    # Descriptions derived only from known input text — never new specs.
-    if desc or mpn:
+    # Descriptions derived only from known input + verified enriched attributes.
+    if desc or mpn or enrichment.verified_facts:
         texts = build_descriptions(
-            part_desc=desc,
-            manufacturer=mfr.matched_name or mfr_q,
-            brand=brand.matched_name or brand_q,
+            part_desc=desc or delivery.get(desc_h or "", ""),
+            manufacturer=effective_mfr,
+            brand=effective_brand,
             mfg_part_num=mpn,
+            verified_facts=enrichment.verified_facts,
         )
         for needles, key in (
             (("INVOICE_DESC", "invoice"), "invoice"),
@@ -149,7 +196,7 @@ def process_row(
         ):
             target = guess_header(headers, *needles)
             if target and not delivery.get(target):
-                _set(delivery, provenance, target, texts[key], "input", "Medium")
+                _set(delivery, provenance, target, texts[key], "generated", "Medium")
 
     for path in lov_paths or []:
         for header, val in list(delivery.items()):
@@ -194,4 +241,5 @@ def process_row(
         "review_required": review or any(p.get("needs_review") for p in provenance.values()),
         "issues": issues,
         "confidence": "Low" if review else ("High" if filled >= 4 else "Medium"),
+        "enrichment": enrichment_stats,
     }

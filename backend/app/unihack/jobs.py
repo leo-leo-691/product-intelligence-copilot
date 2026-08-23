@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from backend.app.config import settings
 from backend.app.unihack.discover import find_delivery_schema, find_file, inventory, missing_hint
 from backend.app.unihack.evaluate import evaluate_predictions, load_ground_truth
 from backend.app.unihack.ingest import ingest_input_workbook
@@ -118,8 +119,13 @@ def run_job(job_id: str) -> dict[str, Any]:
         total = ingested["row_count"]
         job["progress"]["total"] = total
         save_job(job)
+
         ok = fail = 0
-        for raw in ingested["rows"]:
+        workers = max(1, settings.unihack_batch_workers)
+        batch_size = max(1, settings.unihack_batch_size)
+
+        def _process_one(raw: dict) -> dict:
+            """Process a single row with full isolation."""
             try:
                 row = process_row(
                     raw,
@@ -129,14 +135,11 @@ def run_job(job_id: str) -> dict[str, Any]:
                     uom_path=refs["uom"],
                 )
                 if row.get("error"):
-                    fail += 1
                     row["status"] = "error"
                     row["delivery"] = row.get("delivery") or empty_row(headers)
-                else:
-                    ok += 1
+                return row
             except Exception as exc:  # noqa: BLE001
-                fail += 1
-                row = {
+                return {
                     "row_number": raw.get("row_number"),
                     "mfg_part_num": raw.get("Mfg_Part_Num") or raw.get("Mfg_Part_Num"),
                     "status": "error",
@@ -149,15 +152,42 @@ def run_job(job_id: str) -> dict[str, Any]:
                     "issues": [traceback.format_exc(limit=3)],
                     "confidence": "Low",
                 }
-            save_row(job_id, row)
+
+        all_rows = ingested["rows"]
+
+        # Process in batches using ThreadPoolExecutor
+        for batch_start in range(0, len(all_rows), batch_size):
+            batch = all_rows[batch_start : batch_start + batch_size]
+
+            if workers > 1 and len(batch) > 1:
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+
+                with ThreadPoolExecutor(max_workers=min(workers, len(batch))) as executor:
+                    futures = {executor.submit(_process_one, raw): raw for raw in batch}
+                    for future in as_completed(futures):
+                        row = future.result()
+                        if row.get("status") == "error":
+                            fail += 1
+                        else:
+                            ok += 1
+                        save_row(job_id, row)
+            else:
+                # Sequential fallback for single-worker or single-row batches
+                for raw in batch:
+                    row = _process_one(raw)
+                    if row.get("status") == "error":
+                        fail += 1
+                    else:
+                        ok += 1
+                    save_row(job_id, row)
+
             job["progress"] = {
                 "processed": ok + fail,
                 "successful": ok,
                 "failed": fail,
                 "total": total,
             }
-            if (ok + fail) % 50 == 0:
-                save_job(job)
+            save_job(job)
 
         job["progress"] = {
             "processed": ok + fail,

@@ -59,6 +59,8 @@ def find_file(kind: str) -> Path | None:
 
     def _rank(path: Path) -> tuple[int, int]:
         n = _norm_name(path)
+        if path.is_relative_to(UNIHACK_UPLOADS):
+            return (-1, len(path.name))
         if "delivery_format" in n or "sample_dataset" in n:
             return (0, len(path.name))
         if "expected_output" in n or "sample" in n and "input" in n:
