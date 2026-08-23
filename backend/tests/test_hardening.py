@@ -39,13 +39,20 @@ def test_api_key_middleware_constant_time():
         settings.api_key = original_key
 
 
+def auth_headers():
+    return {"X-API-Key": settings.api_key} if settings.api_key else {}
+
+
 def test_upload_path_traversal_and_extension_validation(tmp_path):
-    """Verify upload endpoint rejects path traversal sequences and invalid extensions."""
+    """Verify upload endpoint rejects path traversal sequences and invalid extensions when authenticated."""
+    headers = auth_headers()
+
     # Attempt invalid extension for PDF
     r1 = client.post(
         "/api/ingest/upload",
         data={"sku": "SKU-HARDEN-1"},
         files={"pdf": ("executable.exe", b"binary content", "application/octet-stream")},
+        headers=headers,
     )
     assert r1.status_code == 400
     assert "Unsupported file extension" in r1.json()["detail"]
@@ -55,9 +62,19 @@ def test_upload_path_traversal_and_extension_validation(tmp_path):
         "/api/ingest/upload",
         data={"sku": "../../etc/passwd"},
         files={"pdf": ("document.pdf", b"%PDF-1.4 dummy", "application/pdf")},
+        headers=headers,
     )
     # The file should be saved cleanly under sanitized sku name without throwing 500 or path breakout
     assert r2.status_code in (200, 422)
+
+    # Valid PDF extension should pass upload extension validation
+    r3 = client.post(
+        "/api/ingest/upload",
+        data={"sku": "SKU-HARDEN-VALID"},
+        files={"pdf": ("document.pdf", b"%PDF-1.4 dummy content", "application/pdf")},
+        headers=headers,
+    )
+    assert r3.status_code != 400
 
 
 def test_cors_credential_safety():
